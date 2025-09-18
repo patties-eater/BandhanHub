@@ -1,58 +1,36 @@
+// src/pages/Signup.jsx
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate();
 
   async function handleSignup(e) {
     e.preventDefault();
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) {
-      alert(error.message);
-    } else {
-      alert("Signup successful! Check your email to confirm.");
-    }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback`,
+      },
+    });
+    if (error) return alert(error.message);
+    alert("Signup successful. Check your email for confirmation link.");
+    navigate("/"); // go to login (user should click link in email)
   }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="bg-white shadow-lg rounded-xl p-6 w-96">
-        <h2 className="text-2xl font-bold mb-4 text-center">Signup</h2>
+      <div className="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
+        <h2 className="text-2xl font-bold mb-4 text-center">Create account</h2>
         <form onSubmit={handleSignup} className="flex flex-col gap-3">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border p-2 rounded"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border p-2 rounded"
-            required
-          />
-          <button
-            type="submit"
-            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-          >
-            Signup
-          </button>
+          <input type="email" required placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="border p-2 rounded" />
+          <input type="password" required placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="border p-2 rounded" />
+          <button className="bg-green-600 text-white py-2 rounded">Signup</button>
         </form>
-
-        <div className="mt-4 text-sm text-center">
-          <p>
-            Already have an account?{" "}
-            <Link to="/" className="text-blue-600 hover:underline">
-              Login
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
   );
