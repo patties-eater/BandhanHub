@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 export default function Login() {
@@ -10,10 +10,11 @@ export default function Login() {
   const [otp, setOtp] = useState("");
   const navigate = useNavigate();
 
-  // helper to check profile and redirect
+  // ✅ helper → check profile and redirect
   async function checkProfileAndRedirect() {
     const { data: { user } = {} } = await supabase.auth.getUser();
-    if (!user) return navigate("/"); // fallback
+    if (!user) return navigate("/");
+
     const { data: profile, error } = await supabase
       .from("profiles")
       .select("id")
@@ -21,38 +22,36 @@ export default function Login() {
       .single();
 
     if (error && error.code !== "PGRST116") {
-      // PGRST116 may be thrown when not found; ignore and go to profile
-      // (older clients might return different error codes — still safe)
-      console.error(error);
+      console.error("Profile fetch error:", error);
     }
 
     if (profile) navigate("/dashboard");
-    else navigate("/profile");
+    else navigate("/profile-setup");
   }
 
-  // 1) password login
-  async function handleLogin(e) {
+  // ✅ password login
+  async function handlePasswordLogin(e) {
     e.preventDefault();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return alert(error.message);
-    // session is set via client; now check profile & redirect
     await checkProfileAndRedirect();
   }
 
-  // 2) send OTP (email) — Supabase will send magic link or 6-digit depending on config
-  async function handleSendOtp(e) {
-    e.preventDefault();
+  // ✅ send OTP
+  async function handleSendOtp() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${location.origin}/auth/callback`, shouldCreateUser: true },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        shouldCreateUser: true,
+      },
     });
     if (error) return alert(error.message);
-    alert("Check your email for the login link or OTP.");
-    // if using 6-digit OTP code you can toggle otpMode to allow user to paste code
     setOtpMode(true);
+    alert("Check your email for the login link or OTP code.");
   }
 
-  // 3) verify OTP (6-digit code)
+  // ✅ verify OTP
   async function handleVerifyOtp(e) {
     e.preventDefault();
     const { error } = await supabase.auth.verifyOtp({
@@ -65,11 +64,14 @@ export default function Login() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="bg-white shadow-lg rounded-xl p-6 w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-4 text-center">Login</h2>
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+      <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4 text-center">Login</h2>
 
-        <form onSubmit={otpMode ? handleVerifyOtp : handleLogin} className="flex flex-col gap-3">
+        <form
+          onSubmit={otpMode ? handleVerifyOtp : handlePasswordLogin}
+          className="flex flex-col gap-3"
+        >
           <input
             type="email"
             placeholder="Email"
@@ -79,7 +81,6 @@ export default function Login() {
             required
           />
 
-          {/* show password when not in otp-mode */}
           {!otpMode && (
             <input
               type="password"
@@ -91,7 +92,6 @@ export default function Login() {
             />
           )}
 
-          {/* OTP input (if OTP mode active) */}
           {otpMode && (
             <input
               type="text"
@@ -104,7 +104,7 @@ export default function Login() {
 
           <button
             type="submit"
-            className="bg-blue-600 text-white py-2 rounded font-medium"
+            className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
           >
             {otpMode ? "Verify OTP" : "Login"}
           </button>
@@ -113,19 +113,22 @@ export default function Login() {
         <div className="mt-3 flex gap-2">
           <button
             onClick={handleSendOtp}
-            className="flex-1 bg-purple-600 text-white py-2 rounded"
+            className="flex-1 bg-purple-600 text-white py-2 rounded hover:bg-purple-700"
           >
             Send OTP
           </button>
-          <Link to="/forgot-password" className="flex-1 text-center py-2 border rounded text-blue-600">
+          <Link
+            to="/forgot-password"
+            className="flex-1 text-center py-2 border rounded text-blue-600"
+          >
             Forgot?
           </Link>
         </div>
 
         <div className="mt-4 text-center text-sm">
-          Don't have an account?{" "}
+          Don’t have an account?{" "}
           <Link to="/signup" className="text-blue-600 underline">
-            Create account
+            Sign up
           </Link>
         </div>
       </div>
