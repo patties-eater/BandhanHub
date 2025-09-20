@@ -53,6 +53,9 @@ export default function Navbar() {
         <Link to="/dashboard" className="text-white hover:text-pink-200">
           Home
         </Link>
+        <Link to="/dashboard/settings" className="text-white hover:text-pink-200">
+          Messages
+        </Link>
         <Link to="/dashboard/matches" className="text-white hover:text-pink-200">
           Matches
         </Link>
