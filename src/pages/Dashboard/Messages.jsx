@@ -307,6 +307,68 @@
 
 
 
+// // src/pages/Dashboard/Messages.jsx
+// import { useState, useEffect } from "react";
+// import { useParams } from "react-router-dom";
+// import { supabase } from "../../supabaseClient";
+// import ChatBox from "../../components/ChatBox";
+
+// export default function Messages() {
+//   const { id } = useParams(); // chat partner user ID
+//   const [user, setUser] = useState(null);
+//   const [loading, setLoading] = useState(true);
+
+//   // Fetch chat partner
+//   useEffect(() => {
+//     async function fetchUser() {
+//       const { data, error } = await supabase
+//         .from("profiles")
+//         .select("*")
+//         .eq("id", id)
+//         .single();
+
+//       if (error) {
+//         console.error("Error fetching user:", error);
+//         setLoading(false);
+//         return;
+//       }
+
+//       setUser({
+//         id: data.id,
+//         name: data.full_name,
+//         image:
+//           data.avatar_url ||
+//           `https://api.dicebear.com/8.x/avataaars/svg?seed=${data.full_name}`,
+//       });
+//       setLoading(false);
+//     }
+
+//     fetchUser();
+//   }, [id]);
+
+//   if (loading) return <div className="flex items-center justify-center h-screen">Loading…</div>;
+//   if (!user) return <div className="flex items-center justify-center h-screen text-red-500">User not found</div>;
+
+//   return (
+//     <div className="h-screen flex flex-col">
+//       {/* Header */}
+//       <div className="flex items-center p-4 border-b bg-white shadow-sm">
+//         <img src={user.image} alt={user.name} className="w-12 h-12 rounded-full mr-3 object-cover" />
+//         <h2 className="text-lg font-semibold">{user.name}</h2>
+//       </div>
+
+//       {/* Chat Box */}
+//       <div className="flex-1 overflow-y-auto bg-gray-50">
+//         <ChatBox user={user} />
+//       </div>
+//     </div>
+//   );
+// }
+
+
+
+
+
 // src/pages/Dashboard/Messages.jsx
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
@@ -314,11 +376,11 @@ import { supabase } from "../../supabaseClient";
 import ChatBox from "../../components/ChatBox";
 
 export default function Messages() {
-  const { id } = useParams(); // chat partner user ID
+  const { id } = useParams(); // Chat partner's user ID
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch chat partner
+  // Fetch chat partner profile
   useEffect(() => {
     async function fetchUser() {
       const { data, error } = await supabase
@@ -346,14 +408,29 @@ export default function Messages() {
     fetchUser();
   }, [id]);
 
-  if (loading) return <div className="flex items-center justify-center h-screen">Loading…</div>;
-  if (!user) return <div className="flex items-center justify-center h-screen text-red-500">User not found</div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-screen">
+        Loading…
+      </div>
+    );
+
+  if (!user)
+    return (
+      <div className="flex items-center justify-center h-screen text-red-500">
+        User not found
+      </div>
+    );
 
   return (
     <div className="h-screen flex flex-col">
       {/* Header */}
       <div className="flex items-center p-4 border-b bg-white shadow-sm">
-        <img src={user.image} alt={user.name} className="w-12 h-12 rounded-full mr-3 object-cover" />
+        <img
+          src={user.image}
+          alt={user.name}
+          className="w-12 h-12 rounded-full mr-3 object-cover"
+        />
         <h2 className="text-lg font-semibold">{user.name}</h2>
       </div>
 

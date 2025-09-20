@@ -8,33 +8,33 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  // async function handleSignup(e) {
-  //   e.preventDefault();
-  //   const { error } = await supabase.auth.signUp({
-  //     email,
-  //     password,
-  //     options: {
-  //       emailRedirectTo: `${bandhan-hub.vercel.app}/auth/callback`,
-  //     },
-  //   });
-  //   if (error) return alert(error.message);
-  //   alert("Signup successful. Check your email for confirmation link.");
-  //   navigate("/"); // go to login (user should click link in email)
-  // }
-
   async function handleSignup(e) {
-  e.preventDefault();
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: "https://bandhan-hub.vercel.app/auth/callback", // fixed
-    },
-  });
-  if (error) return alert(error.message);
-  alert("Signup successful. Check your email for confirmation link.");
-  navigate("/"); // redirect user to login (they'll confirm via email)
-}
+    e.preventDefault();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `http://bandhan-hub.vercel.app/auth/callback`,
+      },
+    });
+    if (error) return alert(error.message);
+    alert("Signup successful. Check your email for confirmation link.");
+    navigate("/"); // go to login (user should click link in email)
+  }
+
+//   async function handleSignup(e) {
+//   e.preventDefault();
+//   const { error } = await supabase.auth.signUp({
+//     email,
+//     password,
+//     options: {
+//       emailRedirectTo: "https://bandhan-hub.vercel.app/auth/callback", // fixed
+//     },
+//   });
+//   if (error) return alert(error.message);
+//   alert("Signup successful. Check your email for confirmation link.");
+//   navigate("/"); // redirect user to login (they'll confirm via email)
+// }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
