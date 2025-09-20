@@ -14,7 +14,7 @@ export default function Signup() {
       email,
       password,
       options: {
-        emailRedirectTo: `${http://bandhan-hub.vercel.app}/auth/callback`,
+        emailRedirectTo: `http://bandhan-hub.vercel.app/auth/callback`,
       },
     });
     if (error) return alert(error.message);
