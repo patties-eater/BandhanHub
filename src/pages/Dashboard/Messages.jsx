@@ -35,7 +35,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-import Navbar from "../../components/Navbar";
+
 import ChatBox from "../../components/ChatBox";
 
 export default function Messages() {
@@ -75,8 +75,8 @@ export default function Messages() {
     );
 
   return (
-    <div className="h-screen flex flex-col">
-      <Navbar />
+    <div className="h-[90%] w-[100%] flex flex-col">
+      
       <div className="flex-1">
         <ChatBox user={user} />
       </div>
