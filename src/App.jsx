@@ -53,7 +53,7 @@
 
 
 
-
+import { registerSW } from "virtual:pwa-register";
 import InstallPrompt from "./components/InstallPrompt";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
@@ -71,6 +71,12 @@ import Profile from "./pages/Dashboard/Profile";
 import Messages from "./pages/Dashboard/Messages";
 
 function App() {
+registerSW({
+  onNeedRefresh() {},
+  onOfflineReady() {},
+});
+
+
   return (
     <>
       <BrowserRouter>
