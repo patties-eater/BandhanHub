@@ -1,114 +1,38 @@
-// import { useEffect, useState } from "react";
-
-// export default function InstallPrompt() {
-//   const [deferredPrompt, setDeferredPrompt] = useState(null);
-//   const [showButton, setShowButton] = useState(false);
-
-//   useEffect(() => {
-//     const handler = (e) => {
-//       e.preventDefault();
-//       setDeferredPrompt(e);
-//       setShowButton(true);
-//     };
-
-//     window.addEventListener("beforeinstallprompt", handler);
-
-//     return () => window.removeEventListener("beforeinstallprompt", handler);
-//   }, []);
-
-//   const handleInstall = async () => {
-//     if (!deferredPrompt) return;
-//     deferredPrompt.prompt();
-//     const { outcome } = await deferredPrompt.userChoice;
-//     console.log("User response to install:", outcome);
-//     setDeferredPrompt(null);
-//     setShowButton(false);
-//   };
-
-//   if (!showButton) return null;
-
-//   return (
-//     <div className="fixed bottom-4 right-4 bg-white shadow-md p-3 rounded-lg flex items-center gap-2">
-//       <span>Install BandhanHub app?</span>
-//       <button
-//         onClick={handleInstall}
-//         className="bg-pink-500 text-white px-3 py-1 rounded"
-//       >
-//         Install
-//       </button>
-//     </div>
-//   );
-// }
-
-
-
-
-// src/components/InstallPrompt.jsx
-// import { useEffect, useState } from "react";
-
-// export default function InstallPrompt() {
-//   const [deferredPrompt, setDeferredPrompt] = useState(null);
-//   const [visible, setVisible] = useState(false);
-
-//   useEffect(() => {
-//     const handler = (e) => {
-//       e.preventDefault();
-//       setDeferredPrompt(e);
-//       setVisible(true);
-//     };
-//     window.addEventListener("beforeinstallprompt", handler);
-//     return () => window.removeEventListener("beforeinstallprompt", handler);
-//   }, []);
-
-//   const handleInstall = async () => {
-//     if (!deferredPrompt) return;
-//     deferredPrompt.prompt();
-//     const { outcome } = await deferredPrompt.userChoice;
-//     console.log("Install choice:", outcome);
-//     setDeferredPrompt(null);
-//     setVisible(false);
-//   };
-
-//   if (!visible) return null;
-
-//   return (
-//     <div className="fixed bottom-4 right-4 bg-white shadow-md p-3 rounded-lg flex items-center gap-2">
-//       <span>Install BandhanHub app?</span>
-//       <button
-//         onClick={handleInstall}
-//         className="bg-pink-500 text-white px-3 py-1 rounded"
-//       >
-//         Install
-//       </button>
-//     </div>
-//   );
-// }
-
-
-
-
-
 import { useEffect, useState } from "react";
 
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [visible, setVisible] = useState(true); // 👈 always visible for testing
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    // show when install is possible
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setVisible(true);
+
+      // auto-hide after 10 seconds
+      setTimeout(() => {
+        setVisible(false);
+      }, 10000);
     };
+
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    // hide if already installed
+    const installedHandler = () => {
+      setVisible(false);
+    };
+    window.addEventListener("appinstalled", installedHandler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
-      alert("Install prompt not supported right now, but button is visible.");
-      return;
-    }
+    if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     console.log("Install choice:", outcome);
@@ -130,4 +54,3 @@ export default function InstallPrompt() {
     </div>
   );
 }
-
