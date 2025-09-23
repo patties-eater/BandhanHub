@@ -1,810 +1,252 @@
-// import { useState } from "react";
 
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([
-//     { from: "them", text: "Hi! 👋" },
-//     { from: "me", text: "Hey, how are you?" },
-//   ]);
-//   const [input, setInput] = useState("");
 
-//   const sendMessage = () => {
-//     if (!input.trim()) return;
-//     setMessages([...messages, { from: "me", text: input }]);
-//     setInput("");
-//   };
+
+// import { useEffect, useState } from "react";
+// import { supabase } from "../supabaseClient";
+
+// export default function ChatBox({ user, refreshKey }) {
+//   const [messages, setMessages] = useState([]);
+
+//   useEffect(() => {
+//     async function fetchMessages() {
+//       const { data, error } = await supabase
+//         .from("messages")
+//         .select("*")
+//         .or(
+//           `sender_id.eq.${user.id},receiver_id.eq.${user.id}`
+//         )
+//         .order("created_at", { ascending: true });
+
+//       if (error) {
+//         console.error("Error fetching messages:", error);
+//         return;
+//       }
+
+//       setMessages(data || []);
+//     }
+
+//     fetchMessages();
+//   }, [user.id, refreshKey]); // refresh on trigger
 
 //   return (
-//     <div className="flex flex-col h-full">
-//       <div className="flex items-center gap-3 p-3 bg-pink-100">
+//     <div className="p-4 space-y-2">
+//       {messages.map((msg) => (
+//         <div
+//           key={msg.id}
+//           className={`p-2 rounded-lg max-w-xs ${
+//             msg.sender_id === user.id
+//               ? "bg-blue-500 text-white ml-auto"
+//               : "bg-gray-200 text-black"
+//           }`}
+//         >
+//           {msg.audio_url ? (
+//             <audio controls src={msg.audio_url} className="w-full" />
+//           ) : (
+//             msg.content
+//           )}
+//         </div>
+//       ))}
+//     </div>
+//   );
+// }
+
+
+
+
+
+
+// import { useState, useEffect, useRef } from "react";
+// import { useParams } from "react-router-dom";
+// import { supabase } from "../supabaseClient";
+// import ChatBox from "../components/ChatBox";
+
+// export default function Messages() {
+//   const { id } = useParams();
+//   const [user, setUser] = useState(null);
+//   const [loading, setLoading] = useState(true);
+//   const [refreshTrigger, setRefreshTrigger] = useState(0);
+//   const [message, setMessage] = useState("");
+
+//   // Voice recording
+//   const [recording, setRecording] = useState(false);
+//   const mediaRecorderRef = useRef(null);
+//   const chunksRef = useRef([]);
+
+//   // Fetch chat partner profile
+//   useEffect(() => {
+//     async function fetchUser() {
+//       const { data, error } = await supabase
+//         .from("profiles")
+//         .select("*")
+//         .eq("id", id)
+//         .single();
+
+//       if (error) {
+//         console.error("Error fetching user:", error);
+//         setLoading(false);
+//         return;
+//       }
+
+//       setUser({
+//         id: data.id,
+//         name: data.full_name,
+//         image:
+//           data.avatar_url ||
+//           `https://api.dicebear.com/8.x/avataaars/svg?seed=${data.full_name}`,
+//       });
+//       setLoading(false);
+//     }
+//     fetchUser();
+//   }, [id]);
+
+//   // Poll chat every 2s
+//   useEffect(() => {
+//     const interval = setInterval(() => {
+//       setRefreshTrigger((prev) => prev + 1);
+//     }, 2000);
+//     return () => clearInterval(interval);
+//   }, []);
+
+//   // Send text message
+//   async function sendMessage(e) {
+//     e.preventDefault();
+//     const {
+//       data: { user: currentUser },
+//     } = await supabase.auth.getUser();
+//     if (!currentUser) return;
+//     if (message.trim() === "") return;
+
+//     const { error } = await supabase.from("messages").insert([
+//       {
+//         sender_id: currentUser.id,
+//         receiver_id: user.id,
+//         content: message,
+//       },
+//     ]);
+
+//     if (error) console.error(error);
+//     setMessage("");
+//     setRefreshTrigger((prev) => prev + 1);
+//   }
+
+//   // Start voice recording
+//   const startRecording = async () => {
+//     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+//     mediaRecorderRef.current = new MediaRecorder(stream);
+//     chunksRef.current = [];
+
+//     mediaRecorderRef.current.ondataavailable = (e) => {
+//       if (e.data.size > 0) chunksRef.current.push(e.data);
+//     };
+
+//     mediaRecorderRef.current.onstop = async () => {
+//       const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+//       const {
+//         data: { user: currentUser },
+//       } = await supabase.auth.getUser();
+//       if (!currentUser) return;
+
+//       const fileName = `messages/${currentUser.id}/${Date.now()}.webm`;
+//       const { error: uploadError } = await supabase.storage
+//         .from("voice-messages")
+//         .upload(fileName, blob);
+
+//       if (uploadError) return console.error(uploadError);
+
+//       const { data: urlData } = supabase.storage
+//         .from("voice-messages")
+//         .getPublicUrl(fileName);
+
+//       const publicUrl = urlData.publicUrl;
+
+//       const { error: dbError } = await supabase.from("messages").insert([
+//         {
+//           sender_id: currentUser.id,
+//           receiver_id: user.id,
+//           content: null,
+//           audio_url: publicUrl,
+//         },
+//       ]);
+
+//       if (dbError) console.error(dbError);
+//       setRefreshTrigger((prev) => prev + 1);
+//     };
+
+//     mediaRecorderRef.current.start();
+//     setRecording(true);
+//   };
+
+//   const stopRecording = () => {
+//     mediaRecorderRef.current.stop();
+//     setRecording(false);
+//   };
+
+//   if (loading)
+//     return (
+//       <div className="flex items-center justify-center h-screen">
+//         Loading…
+//       </div>
+//     );
+//   if (!user)
+//     return (
+//       <div className="flex items-center justify-center h-screen text-red-500">
+//         User not found
+//       </div>
+//     );
+
+//   return (
+//     <div className="flex flex-col h-screen w-full max-w-full overflow-x-hidden">
+//       {/* Header */}
+//       <div className="flex items-center p-4 border-b bg-white shadow-sm flex-shrink-0">
 //         <img
 //           src={user.image}
 //           alt={user.name}
-//           className="w-10 h-10 rounded-full object-cover"
+//           className="w-12 h-12 rounded-full mr-3 object-cover"
 //         />
-//         <h2 className="font-semibold">{user.name}</h2>
-//       </div>
-//       <div className="flex-1 overflow-y-auto p-3 space-y-2">
-//         {messages.map((msg, i) => (
-//           <div
-//             key={i}
-//             className={`p-2 rounded-lg max-w-xs ${
-//               msg.from === "me" ? "bg-pink-500 text-white ml-auto" : "bg-gray-200"
-//             }`}
-//           >
-//             {msg.text}
-//           </div>
-//         ))}
-//       </div>
-//       <div className="flex p-3 gap-2">
-//         <input
-//           className="flex-1 border rounded-lg p-2"
-//           value={input}
-//           onChange={(e) => setInput(e.target.value)}
-//           placeholder="Type a message..."
-//         />
-//         <button onClick={sendMessage} className="px-4 py-2 bg-pink-500 text-white rounded-lg">
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-// // src/components/ChatBox.jsx
-
-
-// import { useState, useEffect, useRef } from "react";
-// import { supabase } from "../supabaseClient";
-
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const messageEndRef = useRef(null);
-
-//   // Get logged-in user
-//   useEffect(() => {
-//     supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
-//   }, []);
-
-//   // Fetch messages between currentUser and user.id
-//   useEffect(() => {
-//     if (!currentUser) return;
-
-//     async function fetchMessages() {
-//       const { data, error } = await supabase
-//         .from("messages")
-//         .select("*")
-//         .or(
-//           `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`
-//         )
-//         .order("created_at", { ascending: true });
-
-//       if (error) console.error(error);
-//       else setMessages(data);
-//     }
-
-//     fetchMessages();
-
-//     // Real-time updates
-//     const subscription = supabase
-//       .channel("public:messages")
-//       .on(
-//         "postgres_changes",
-//         {
-//           event: "INSERT",
-//           schema: "public",
-//           table: "messages",
-//         },
-//         (payload) => {
-//           const msg = payload.new;
-//           if (
-//             (msg.sender_id === currentUser.id && msg.receiver_id === user.id) ||
-//             (msg.sender_id === user.id && msg.receiver_id === currentUser.id)
-//           ) {
-//             setMessages((prev) => [...prev, msg]);
-//           }
-//         }
-//       )
-//       .subscribe();
-
-//     return () => supabase.removeChannel(subscription);
-//   }, [currentUser, user.id]);
-
-//   // Auto scroll
-//   useEffect(() => {
-//     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   // Send message
-//   async function handleSend() {
-//     if (!newMessage.trim()) return;
-//     await supabase.from("messages").insert([
-//       {
-//         sender_id: currentUser.id,
-//         receiver_id: user.id,
-//         content: newMessage,
-//       },
-//     ]);
-//     setNewMessage("");
-//   }
-
-//   return (
-//     <div className="flex flex-col h-full p-4">
-//       <div className="flex-1 overflow-y-auto mb-4">
-//         {messages.map((msg) => (
-//           <div
-//             key={msg.id}
-//             className={`p-2 my-1 rounded-xl max-w-xs ${
-//               msg.sender_id === currentUser?.id
-//                 ? "bg-blue-500 text-white ml-auto"
-//                 : "bg-gray-200 text-gray-800 mr-auto"
-//             }`}
-//           >
-//             {msg.content}
-//           </div>
-//         ))}
-//         <div ref={messageEndRef}></div>
+//         <h2 className="text-lg font-semibold truncate">{user.name}</h2>
 //       </div>
 
-//       <div className="flex gap-2">
+//       {/* Chat area */}
+//       <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-2">
+//         <ChatBox user={user} refreshKey={refreshTrigger} />
+//       </div>
+
+//       {/* Input + buttons */}
+//       <form
+//         onSubmit={sendMessage}
+//         className="flex-shrink-0 p-4 border-t bg-white flex items-center gap-3"
+//       >
 //         <input
 //           type="text"
-//           className="flex-1 p-2 border rounded"
-//           value={newMessage}
-//           onChange={(e) => setNewMessage(e.target.value)}
+//           value={message}
+//           onChange={(e) => setMessage(e.target.value)}
 //           placeholder="Type a message..."
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
+//           className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-blue-400 max-w-full"
 //         />
 //         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+//           type="submit"
+//           className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
 //         >
 //           Send
 //         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-// src/components/ChatBox.jsx
-// import { useState, useEffect, useRef } from "react";
-// import { supabase } from "../supabaseClient";
-
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const messageEndRef = useRef(null);
-
-//   // Get logged-in user
-//   useEffect(() => {
-//     supabase.auth.getUser().then(({ data: { user } }) => setCurrentUser(user));
-//   }, []);
-
-//   // Fetch messages and subscribe to real-time updates
-//   useEffect(() => {
-//     if (!currentUser) return;
-
-//     async function fetchMessages() {
-//       const { data, error } = await supabase
-//         .from("messages")
-//         .select("*")
-//         .or(
-//           `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),
-//            and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`
-//         )
-//         .order("created_at", { ascending: true });
-
-//       if (error) console.error(error);
-//       else setMessages(data);
-//     }
-
-//     fetchMessages();
-
-//     // Real-time subscription for new messages
-//     const subscription = supabase
-//       .channel("public:messages")
-//       .on(
-//         "postgres_changes",
-//         {
-//           event: "INSERT",
-//           schema: "public",
-//           table: "messages",
-//         },
-//         (payload) => {
-//           const msg = payload.new;
-//           if (
-//             (msg.sender_id === currentUser.id && msg.receiver_id === user.id) ||
-//             (msg.sender_id === user.id && msg.receiver_id === currentUser.id)
-//           ) {
-//             setMessages((prev) => [...prev, msg]);
-//           }
-//         }
-//       )
-//       .subscribe();
-
-//     return () => supabase.removeChannel(subscription);
-//   }, [currentUser, user.id]);
-
-//   // Auto-scroll to latest message
-//   useEffect(() => {
-//     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   // Send new message
-//   async function handleSend() {
-//     if (!newMessage.trim()) return;
-//     await supabase.from("messages").insert([
-//       {
-//         sender_id: currentUser.id,
-//         receiver_id: user.id,
-//         content: newMessage,
-//       },
-//     ]);
-//     setNewMessage("");
-//   }
-
-//   return (
-//     <div className="flex flex-col h-full p-4">
-//       {/* Message List */}
-//       <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-//         {messages.map((msg) => (
-//           <div
-//             key={msg.id}
-//             className={`p-2 rounded-xl max-w-xs break-words ${
-//               msg.sender_id === currentUser?.id
-//                 ? "bg-blue-500 text-white ml-auto"
-//                 : "bg-gray-200 text-gray-800 mr-auto"
-//             }`}
+//         {recording ? (
+//           <button
+//             type="button"
+//             onClick={stopRecording}
+//             className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
 //           >
-//             {msg.content}
-//           </div>
-//         ))}
-//         <div ref={messageEndRef}></div>
-//       </div>
-
-//       {/* Input Box */}
-//       <div className="flex gap-2">
-//         <input
-//           type="text"
-//           className="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
-//           value={newMessage}
-//           onChange={(e) => setNewMessage(e.target.value)}
-//           placeholder="Type a message..."
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-//         />
-//         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-// src/components/ChatBox.jsx
-// import { useState, useEffect, useRef } from "react";
-// import { supabase } from "../supabaseClient";
-
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const messageEndRef = useRef(null);
-
-//   // 1️⃣ Get logged-in user
-//   useEffect(() => {
-//     supabase.auth.getUser().then(({ data: { user } }) => {
-//       setCurrentUser(user);
-//       setLoading(false);
-//     });
-//   }, []);
-
-//   // 2️⃣ Fetch messages and subscribe to real-time updates
-//   useEffect(() => {
-//     if (!currentUser || !user) return;
-
-//     async function fetchMessages() {
-//       try {
-//         const filter = `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`;
-
-//         const { data, error } = await supabase
-//           .from("messages")
-//           .select("*")
-//           .or(filter)
-//           .order("created_at", { ascending: true });
-
-//         if (error) throw error;
-//         setMessages(data);
-//       } catch (err) {
-//         console.error("Error fetching messages:", err.message);
-//       }
-//     }
-
-//     fetchMessages();
-
-//     // Real-time subscription
-//     const subscription = supabase
-//       .channel("public:messages")
-//       .on(
-//         "postgres_changes",
-//         {
-//           event: "INSERT",
-//           schema: "public",
-//           table: "messages",
-//         },
-//         (payload) => {
-//           const msg = payload.new;
-//           if (
-//             (msg.sender_id === currentUser?.id && msg.receiver_id === user?.id) ||
-//             (msg.sender_id === user?.id && msg.receiver_id === currentUser?.id)
-//           ) {
-//             setMessages((prev) => [...prev, msg]);
-//           }
-//         }
-//       )
-//       .subscribe();
-
-//     return () => supabase.removeChannel(subscription);
-//   }, [currentUser, user]);
-
-//   // 3️⃣ Auto-scroll to latest message
-//   useEffect(() => {
-//     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   // 4️⃣ Send new message
-//   async function handleSend() {
-//     if (!newMessage.trim() || !currentUser || !user) return;
-//     try {
-//       await supabase.from("messages").insert([
-//         {
-//           sender_id: currentUser.id,
-//           receiver_id: user.id,
-//           content: newMessage,
-//         },
-//       ]);
-//       setNewMessage("");
-//     } catch (err) {
-//       console.error("Error sending message:", err.message);
-//     }
-//   }
-
-//   if (loading) {
-//     return (
-//       <div className="flex items-center justify-center h-full">
-//         Loading chat…
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div className="flex flex-col h-full p-4">
-//       {/* Message List */}
-//       <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-//         {messages.map((msg) => (
-//           <div
-//             key={msg.id}
-//             className={`p-2 rounded-xl max-w-xs break-words ${
-//               msg.sender_id === currentUser?.id
-//                 ? "bg-blue-500 text-white ml-auto"
-//                 : "bg-gray-200 text-gray-800 mr-auto"
-//             }`}
+//             Stop 🎙️
+//           </button>
+//         ) : (
+//           <button
+//             type="button"
+//             onClick={startRecording}
+//             className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
 //           >
-//             {msg.content}
-//           </div>
-//         ))}
-//         <div ref={messageEndRef}></div>
-//       </div>
-
-//       {/* Input Box */}
-//       <div className="flex gap-2">
-//         <input
-//           type="text"
-//           className="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
-//           value={newMessage}
-//           onChange={(e) => setNewMessage(e.target.value)}
-//           placeholder="Type a message..."
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-//         />
-//         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-// src/components/ChatBox.jsx
-// import { useState, useEffect, useRef } from "react";
-// import { supabase } from "../supabaseClient";
-
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const messageEndRef = useRef(null);
-
-//   // Get logged-in user
-//   useEffect(() => {
-//     supabase.auth.getUser().then(({ data: { user } }) => {
-//       setCurrentUser(user);
-//       setLoading(false);
-//     });
-//   }, []);
-
-//   // Fetch messages & subscribe to real-time
-//   useEffect(() => {
-//     if (!currentUser || !user) return;
-
-//     const fetchMessages = async () => {
-//       try {
-//         const filter = `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`;
-//         const { data, error } = await supabase
-//           .from("messages")
-//           .select("*")
-//           .or(filter)
-//           .order("created_at", { ascending: true });
-
-//         if (error) throw error;
-//         setMessages(data);
-//       } catch (err) {
-//         console.error("Error fetching messages:", err.message);
-//       }
-//     };
-
-//     fetchMessages();
-
-//     const subscription = supabase
-//       .channel("public:messages")
-//       .on(
-//         "postgres_changes",
-//         { event: "INSERT", schema: "public", table: "messages" },
-//         (payload) => {
-//           const msg = payload.new;
-//           if (
-//             (msg.sender_id === currentUser?.id && msg.receiver_id === user?.id) ||
-//             (msg.sender_id === user?.id && msg.receiver_id === currentUser?.id)
-//           ) {
-//             setMessages((prev) => [...prev, msg]);
-//           }
-//         }
-//       )
-//       .subscribe();
-
-//     return () => supabase.removeChannel(subscription);
-//   }, [currentUser, user]);
-
-//   // Auto-scroll
-//   useEffect(() => {
-//     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   // Send message
-//   const handleSend = async () => {
-//     if (!newMessage.trim() || !currentUser || !user) return;
-//     try {
-//       await supabase.from("messages").insert([
-//         { sender_id: currentUser.id, receiver_id: user.id, content: newMessage },
-//       ]);
-//       setNewMessage("");
-//     } catch (err) {
-//       console.error("Error sending message:", err.message);
-//     }
-//   };
-
-//   if (loading) return <div className="flex items-center justify-center h-full">Loading chat…</div>;
-
-//   return (
-//     <div className="flex flex-col h-full p-4">
-//       {/* Message List */}
-//       <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-//         {messages.map((msg) => (
-//           <div
-//             key={msg.id}
-//             className={`p-2 rounded-xl max-w-xs break-words ${
-//               msg.sender_id === currentUser?.id
-//                 ? "bg-blue-500 text-white ml-auto"
-//                 : "bg-gray-200 text-gray-800 mr-auto"
-//             }`}
-//           >
-//             {msg.content}
-//           </div>
-//         ))}
-//         <div ref={messageEndRef}></div>
-//       </div>
-
-//       {/* Input */}
-//       <div className="flex gap-2">
-//         <input
-//           type="text"
-//           className="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
-//           value={newMessage}
-//           onChange={(e) => setNewMessage(e.target.value)}
-//           placeholder="Type a message..."
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-//         />
-//         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-// import { useState, useEffect, useRef } from "react";
-// import { supabase } from "../supabaseClient";
-
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const messageEndRef = useRef(null);
-
-//   // Get logged-in user
-//   useEffect(() => {
-//     supabase.auth.getUser().then(({ data: { user } }) => {
-//       setCurrentUser(user);
-//       setLoading(false);
-//     });
-//   }, []);
-
-//   // Fetch messages and subscribe to real-time
-//   useEffect(() => {
-//     if (!currentUser || !user) return;
-
-//     const fetchMessages = async () => {
-//       const { data, error } = await supabase
-//         .from("messages")
-//         .select("*")
-//         .or(
-//           `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`
-//         )
-//         .order("created_at", { ascending: true });
-
-//       if (error) console.error(error);
-//       else setMessages(data);
-//     };
-
-//     fetchMessages();
-
-//     // Real-time subscription
-//     const subscription = supabase
-//       .channel("messages-channel") // unique channel name
-//       .on(
-//         "postgres_changes",
-//         {
-//           event: "INSERT",
-//           schema: "public",
-//           table: "messages",
-//         },
-//         (payload) => {
-//           const msg = payload.new;
-//           // Only add message if it's between currentUser and chat partner
-//           if (
-//             (msg.sender_id === currentUser?.id && msg.receiver_id === user?.id) ||
-//             (msg.sender_id === user?.id && msg.receiver_id === currentUser?.id)
-//           ) {
-//             setMessages((prev) => [...prev, msg]);
-//           }
-//         }
-//       )
-//       .subscribe();
-
-//     // Cleanup
-//     return () => supabase.removeChannel(subscription);
-//   }, [currentUser, user]);
-
-//   // Auto-scroll
-//   useEffect(() => {
-//     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   const handleSend = async () => {
-//     if (!newMessage.trim()) return;
-
-//     try {
-//       await supabase.from("messages").insert([
-//         { sender_id: currentUser.id, receiver_id: user.id, content: newMessage },
-//       ]);
-//       setNewMessage(""); // clear input
-//       // The new message will appear via the real-time listener
-//     } catch (err) {
-//       console.error("Error sending message:", err.message);
-//     }
-//   };
-
-//   if (loading) return <div className="flex items-center justify-center h-full">Loading chat…</div>;
-
-//   return (
-//     <div className="flex flex-col h-full p-4">
-//       <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-//         {messages.map((msg) => (
-//           <div
-//             key={msg.id}
-//             className={`p-2 rounded-xl max-w-xs break-words ${
-//               msg.sender_id === currentUser?.id
-//                 ? "bg-blue-500 text-white ml-auto"
-//                 : "bg-gray-200 text-gray-800 mr-auto"
-//             }`}
-//           >
-//             {msg.content}
-//           </div>
-//         ))}
-//         <div ref={messageEndRef}></div>
-//       </div>
-
-//       <div className="flex gap-2">
-//         <input
-//           type="text"
-//           className="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
-//           value={newMessage}
-//           onChange={(e) => setNewMessage(e.target.value)}
-//           placeholder="Type a message..."
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-//         />
-//         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-
-// src/components/ChatBox.jsx
-// import { useState, useEffect, useRef } from "react";
-// import { supabase } from "../supabaseClient";
-
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const messageEndRef = useRef(null);
-
-//   // Get current user
-//   useEffect(() => {
-//     supabase.auth.getUser().then(({ data: { user } }) => {
-//       if (user) setCurrentUser(user);
-//       setLoading(false);
-//     });
-//   }, []);
-
-//   // Fetch messages + subscribe real-time
-//   useEffect(() => {
-//     if (!currentUser || !user) return;
-
-//     const fetchMessages = async () => {
-//       const { data, error } = await supabase
-//         .from("messages")
-//         .select("*")
-//         .or(
-//           `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`
-//         )
-//         .order("created_at", { ascending: true });
-
-//       if (error) console.error("Error fetching messages:", error);
-//       else setMessages(data || []);
-//     };
-
-//     fetchMessages();
-
-//     // Real-time subscription
-//     const subscription = supabase
-//       .from("messages")
-//       .on("INSERT", (payload) => {
-//         const msg = payload.new;
-//         if (
-//           (msg.sender_id === currentUser.id && msg.receiver_id === user.id) ||
-//           (msg.sender_id === user.id && msg.receiver_id === currentUser.id)
-//         ) {
-//           setMessages((prev) => [...prev, msg]);
-//         }
-//       })
-//       .subscribe();
-
-//     // Cleanup
-//     return () => supabase.removeSubscription(subscription);
-//   }, [currentUser, user]);
-
-//   // Auto-scroll
-//   useEffect(() => {
-//     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   const handleSend = async () => {
-//     if (!newMessage.trim() || !currentUser || !user) return;
-
-//     try {
-//       await supabase.from("messages").insert([
-//         {
-//           sender_id: currentUser.id,
-//           receiver_id: user.id,
-//           content: newMessage,
-//         },
-//       ]);
-//       setNewMessage(""); // clear input
-//       // New message appears via real-time listener
-//     } catch (err) {
-//       console.error("Error sending message:", err.message);
-//     }
-//   };
-
-//   if (loading)
-//     return (
-//       <div className="flex items-center justify-center h-full">
-//         Loading chat…
-//       </div>
-//     );
-
-//   return (
-//     <div className="flex flex-col h-full p-4">
-//       {/* Message list */}
-//       <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-//         {messages.map((msg) => (
-//           <div
-//             key={msg.id}
-//             className={`p-2 rounded-xl max-w-xs break-words ${
-//               msg.sender_id === currentUser.id
-//                 ? "bg-blue-500 text-white ml-auto"
-//                 : "bg-gray-200 text-gray-800 mr-auto"
-//             }`}
-//           >
-//             {msg.content}
-//           </div>
-//         ))}
-//         <div ref={messageEndRef}></div>
-//       </div>
-
-//       {/* Input */}
-//       <div className="flex gap-2">
-//         <input
-//           type="text"
-//           className="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
-//           value={newMessage}
-//           onChange={(e) => setNewMessage(e.target.value)}
-//           placeholder="Type a message..."
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-//         />
-//         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-//         >
-//           Send
-//         </button>
-//       </div>
+//             Record 🎙️
+//           </button>
+//         )}
+//       </form>
 //     </div>
 //   );
 // }
@@ -814,279 +256,64 @@
 
 
 
-
-
-
-// // src/components/ChatBox.jsx
-// import { useState, useEffect, useRef } from "react";
-// import { supabase } from "../supabaseClient";
-
-// export default function ChatBox({ user }) {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const messageEndRef = useRef(null);
-
-//   // 1️⃣ Get current logged-in user
-//   useEffect(() => {
-//     supabase.auth.getUser().then(({ data: { user } }) => {
-//       if (user) setCurrentUser(user);
-//       setLoading(false);
-//     }).catch((err) => {
-//       console.error("Failed to get current user:", err);
-//       setLoading(false);
-//     });
-//   }, []);
-
-//   // 2️⃣ Fetch messages + subscribe to real-time updates
-//   useEffect(() => {
-//     if (!currentUser || !user?.id) return;
-
-//     let isMounted = true; // prevent state updates if component unmounts
-
-//     const fetchMessages = async () => {
-//       try {
-//         const { data, error } = await supabase
-//           .from("messages")
-//           .select("*")
-//           .or(
-//             `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`
-//           )
-//           .order("created_at", { ascending: true });
-
-//         if (error) throw error;
-//         if (isMounted) setMessages(data || []);
-//       } catch (err) {
-//         console.error("Error fetching messages:", err.message);
-//       }
-//     };
-
-//     fetchMessages();
-
-//     const subscription = supabase
-//       .from("messages")
-//       .on("INSERT", (payload) => {
-//         const msg = payload.new;
-//         if (
-//           msg?.sender_id && msg?.receiver_id &&
-//           ((msg.sender_id === currentUser.id && msg.receiver_id === user.id) ||
-//             (msg.sender_id === user.id && msg.receiver_id === currentUser.id))
-//         ) {
-//           setMessages((prev) => [...prev, msg]);
-//         }
-//       })
-//       .subscribe();
-
-//     return () => {
-//       isMounted = false;
-//       supabase.removeSubscription(subscription);
-//     };
-//   }, [currentUser, user]);
-
-//   // 3️⃣ Auto-scroll to newest message
-//   useEffect(() => {
-//     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   // 4️⃣ Send message
-//   const handleSend = async () => {
-//     if (!newMessage.trim() || !currentUser?.id || !user?.id) return;
-
-//     try {
-//       await supabase.from("messages").insert([
-//         { sender_id: currentUser.id, receiver_id: user.id, content: newMessage },
-//       ]);
-//       setNewMessage(""); // clear input
-//       // Real-time subscription handles displaying the message
-//     } catch (err) {
-//       console.error("Error sending message:", err.message);
-//     }
-//   };
-
-//   if (loading)
-//     return (
-//       <div className="flex items-center justify-center h-full">
-//         Loading chat…
-//       </div>
-//     );
-
-//   return (
-//     <div className="flex flex-col h-full p-4">
-//       {/* Messages list */}
-//       <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-//         {messages.map((msg) => (
-//           <div
-//             key={msg.id}
-//             className={`p-2 rounded-xl max-w-xs break-words ${
-//               msg.sender_id === currentUser?.id
-//                 ? "bg-blue-500 text-white ml-auto"
-//                 : "bg-gray-200 text-gray-800 mr-auto"
-//             }`}
-//           >
-//             {msg.content}
-//           </div>
-//         ))}
-//         <div ref={messageEndRef}></div>
-//       </div>
-
-//       {/* Input */}
-//       <div className="flex gap-2">
-//         <input
-//           type="text"
-//           className="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
-//           value={newMessage}
-//           onChange={(e) => setNewMessage(e.target.value)}
-//           placeholder="Type a message..."
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-//         />
-//         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// }
-
-
-
-
-// src/components/ChatBox.jsx
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
-export default function ChatBox({ user }) {
+export default function ChatBox({ user, refreshKey }) {
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const messageEndRef = useRef(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  // 1️⃣ Get logged-in user
   useEffect(() => {
-    supabase.auth.getUser()
-      .then(({ data: { user } }) => {
-        if (user) setCurrentUser(user);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to get current user:", err);
-        setLoading(false);
-      });
+    async function getCurrentUser() {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+      if (currentUser) setCurrentUserId(currentUser.id);
+    }
+    getCurrentUser();
   }, []);
 
-  // 2️⃣ Fetch messages + subscribe to real-time
   useEffect(() => {
-    if (!currentUser || !user?.id) return;
+    if (!currentUserId) return;
 
-    let isMounted = true;
+    async function fetchMessages() {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .or(
+          `and(sender_id.eq.${currentUserId},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUserId})`
+        )
+        .order("created_at", { ascending: true });
 
-    const fetchMessages = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("messages")
-          .select("*")
-          .or(
-            `and(sender_id.eq.${currentUser.id},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${currentUser.id})`
-          )
-          .order("created_at", { ascending: true });
-
-        if (error) throw error;
-        if (isMounted) setMessages(data || []);
-      } catch (err) {
-        console.error("Error fetching messages:", err.message);
+      if (error) {
+        console.error("Error fetching messages:", error);
+        return;
       }
-    };
+
+      setMessages(data || []);
+    }
 
     fetchMessages();
-
-    // Real-time subscription using the new API
-    const channel = supabase
-      .channel("messages-channel")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const msg = payload.new;
-          if (
-            msg?.sender_id &&
-            msg?.receiver_id &&
-            ((msg.sender_id === currentUser.id && msg.receiver_id === user.id) ||
-              (msg.sender_id === user.id && msg.receiver_id === currentUser.id))
-          ) {
-            setMessages((prev) => [...prev, msg]);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      isMounted = false;
-      supabase.removeChannel(channel);
-    };
-  }, [currentUser, user]);
-
-  // 3️⃣ Auto-scroll to bottom
-  useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // 4️⃣ Send message
-  const handleSend = async () => {
-    if (!newMessage.trim() || !currentUser?.id || !user?.id) return;
-
-    try {
-      await supabase.from("messages").insert([
-        { sender_id: currentUser.id, receiver_id: user.id, content: newMessage },
-      ]);
-      setNewMessage(""); // clear input
-      // new message will appear automatically via subscription
-    } catch (err) {
-      console.error("Error sending message:", err.message);
-    }
-  };
-
-  if (loading) return <div className="flex items-center justify-center h-full">Loading chat…</div>;
+  }, [user.id, currentUserId, refreshKey]);
 
   return (
-    <div className="flex flex-col h-full p-4">
-      {/* Messages list */}
-      <div className="flex-1 overflow-y-auto mb-4 space-y-2">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`p-2 rounded-xl max-w-xs break-words ${
-              msg.sender_id === currentUser?.id
-                ? "bg-blue-500 text-white ml-auto"
-                : "bg-gray-200 text-gray-800 mr-auto"
-            }`}
-          >
-            {msg.content}
-          </div>
-        ))}
-        <div ref={messageEndRef}></div>
-      </div>
-
-      {/* Input */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          className="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-blue-300"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type a message..."
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        />
-        <button
-          onClick={handleSend}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+    <div className="p-4 space-y-2">
+      {messages.map((msg) => (
+        <div
+          key={msg.id}
+          className={`p-2 rounded-lg max-w-xs break-words ${
+            msg.sender_id === currentUserId
+              ? "bg-blue-500 text-white ml-auto"
+              : "bg-gray-200 text-black"
+          }`}
         >
-          Send
-        </button>
-      </div>
+          {msg.audio_url ? (
+            <audio controls src={msg.audio_url} className="w-full" />
+          ) : (
+            msg.content
+          )}
+        </div>
+      ))}
     </div>
   );
 }

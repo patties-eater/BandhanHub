@@ -37,23 +37,29 @@
 
 
 
-
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 
 export default function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <nav className="bg-pink-600 shadow px-6 py-3 flex justify-between items-center">
+    <nav className="bg-pink-600 shadow px-6 py-3 flex justify-between items-center relative">
       {/* Logo / Brand */}
-      <Link to="/dashboard" className="text-2xl font-bold text-white hover:text-pink-200">
+      <Link
+        to="/dashboard"
+        className="text-2xl font-bold text-white hover:text-pink-200"
+      >
         BandhanHub ❤️
       </Link>
 
-      {/* Navigation Links */}
-      <div className="space-x-6">
+      {/* Desktop Menu */}
+      <div className="hidden md:flex space-x-6">
         <Link to="/dashboard" className="text-white hover:text-pink-200">
           Home
         </Link>
-        <Link to="/dashboard/settings" className="text-white hover:text-pink-200">
+        <Link to="/dashboard/messages" className="text-white hover:text-pink-200">
           Messages
         </Link>
         <Link to="/dashboard/matches" className="text-white hover:text-pink-200">
@@ -66,6 +72,55 @@ export default function Navbar() {
           Settings
         </Link>
       </div>
+
+      {/* Mobile Menu Button */}
+      <button
+        className="md:hidden text-white focus:outline-none"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {isOpen ? <X size={28} /> : <Menu size={28} />}
+      </button>
+
+      {/* Mobile Dropdown */}
+      {isOpen && (
+        <div className="absolute top-full left-0 w-full bg-pink-600 shadow-md md:hidden flex flex-col items-start space-y-4 p-4">
+          <Link
+            to="/dashboard"
+            onClick={() => setIsOpen(false)}
+            className="text-white hover:text-pink-200 w-full"
+          >
+            Home
+          </Link>
+          <Link
+            to="/dashboard/messages"
+            onClick={() => setIsOpen(false)}
+            className="text-white hover:text-pink-200 w-full"
+          >
+            Messages
+          </Link>
+          <Link
+            to="/dashboard/matches"
+            onClick={() => setIsOpen(false)}
+            className="text-white hover:text-pink-200 w-full"
+          >
+            Matches
+          </Link>
+          <Link
+            to="/dashboard/profile"
+            onClick={() => setIsOpen(false)}
+            className="text-white hover:text-pink-200 w-full"
+          >
+            Profile
+          </Link>
+          <Link
+            to="/dashboard/settings"
+            onClick={() => setIsOpen(false)}
+            className="text-white hover:text-pink-200 w-full"
+          >
+            Settings
+          </Link>
+        </div>
+      )}
     </nav>
   );
 }
