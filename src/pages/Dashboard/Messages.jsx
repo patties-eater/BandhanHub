@@ -115,7 +115,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import ChatBox from "../../components/ChatBox";
-import { useWebRTC } from "../../components/useWebRTC";
+import { useWebRTC } from "../../hooks/useWebRTC";
 import ChatHeader from "../../components/messages/ChatHeader";
 import ChatInput from "../../components/messages/ChatInput";
 import IncomingCallPopup from "../../components/messages/IncomingCallPopup";
