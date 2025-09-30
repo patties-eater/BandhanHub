@@ -1,38 +1,38 @@
-// src/components/CallManager.jsx
-import { useWebRTCContext } from "./WebRTCProvider";
-import IncomingCallPopup from "./messages/IncomingCallPopup";
-import CallOverlay from "./messages/CallOverlay";
+// // src/components/CallManager.jsx
 
-export default function CallManager() {
-  const {
-    incomingCall,
-    acceptCall,
-    rejectCall,
-    inCall,
-    endCall,
-    localStreamRef,
-    remoteStreamRef,
-  } = useWebRTCContext();
+// import IncomingCallPopup from "./messages/IncomingCallPopup";
+// import CallOverlay from "./messages/CallOverlay";
 
-  return (
-    <>
-      {/* Incoming Call Popup */}
-      {incomingCall && (
-        <IncomingCallPopup
-          call={incomingCall}
-          onAccept={acceptCall}
-          onReject={rejectCall}
-        />
-      )}
+// export default function CallManager() {
+//   const {
+//     incomingCall,
+//     acceptCall,
+//     rejectCall,
+//     inCall,
+//     endCall,
+//     localStreamRef,
+//     remoteStreamRef,
+//   } = useWebRTCContext();
 
-      {/* Active Call Overlay */}
-      <CallOverlay
-        inCall={inCall}
-        endCall={endCall}
-        localStreamRef={localStreamRef}
-        remoteStreamRef={remoteStreamRef}
-      />
-    </>
-  );
-}
+//   return (
+//     <>
+//       {/* Incoming Call Popup */}
+//       {incomingCall && (
+//         <IncomingCallPopup
+//           call={incomingCall}
+//           onAccept={acceptCall}
+//           onReject={rejectCall}
+//         />
+//       )}
+
+//       {/* Active Call Overlay */}
+//       <CallOverlay
+//         inCall={inCall}
+//         endCall={endCall}
+//         localStreamRef={localStreamRef}
+//         remoteStreamRef={remoteStreamRef}
+//       />
+//     </>
+//   );
+// }
 
