@@ -19,7 +19,6 @@
 //   );
 // }
 
-
 import { Outlet } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 
@@ -27,10 +26,9 @@ export default function Dashboard() {
   return (
     <div className="h-screen flex flex-col">
       <Navbar />
-      <div className="flex-1 bg-gray-50 overflow-y-auto p-6">
+      <div className="flex-1 bg-gray-50 overflow-y-auto">
         <Outlet />
       </div>
     </div>
   );
 }
-

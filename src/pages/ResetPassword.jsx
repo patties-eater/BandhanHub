@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import Spinner from "../components/Spinner";
 
 export default function ResetPassword() {
   const [ready, setReady] = useState(false);
@@ -12,7 +13,9 @@ export default function ResetPassword() {
     // When user arrives via reset link, parse and store session
     async function init() {
       try {
-        const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+        const { data, error } = await supabase.auth.getSessionFromUrl({
+          storeSession: true,
+        });
         if (error) {
           console.error("Reset callback parse error", error);
           // still allow manual entry? But better fall back to login
@@ -40,11 +43,22 @@ export default function ResetPassword() {
       <div className="bg-white p-6 rounded-xl shadow w-full max-w-md">
         <h2 className="text-xl font-bold mb-4">Choose a new password</h2>
         {!ready ? (
-          <div>Processing reset link…</div>
+          <div className="flex justify-center p-4">
+            <Spinner className="w-8 h-8 text-blue-600" />
+          </div>
         ) : (
           <form onSubmit={handleUpdate} className="flex flex-col gap-3">
-            <input type="password" required placeholder="New password" value={password} onChange={e=>setPassword(e.target.value)} className="border p-2 rounded" />
-            <button className="bg-green-600 text-white py-2 rounded">Update password</button>
+            <input
+              type="password"
+              required
+              placeholder="New password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="border p-2 rounded"
+            />
+            <button className="bg-green-600 text-white py-2 rounded">
+              Update password
+            </button>
           </form>
         )}
       </div>

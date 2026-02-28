@@ -1,5 +1,3 @@
-
-
 // import { useEffect, useState } from "react";
 // import { supabase } from "../../supabaseClient";
 // import { Link, useNavigate } from "react-router-dom";
@@ -93,11 +91,6 @@
 //   );
 // }
 
-
-
-
-
-
 // // src/components/Inbox.jsx
 // import { useEffect, useState } from "react";
 // import { supabase } from "../../supabaseClient";
@@ -188,15 +181,6 @@
 //     </div>
 //   );
 // }
-
-
-
-
-
-
-
-
-
 
 // // src/pages/Dashboard/Inbox.jsx
 // import { useEffect, useState } from "react";
@@ -299,20 +283,11 @@
 //   );
 // }
 
-
-
-
-
-
-
-
-
-
-
 // src/pages/Dashboard/Inbox.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { Link, useNavigate } from "react-router-dom";
+import Spinner from "../../components/Spinner";
 
 export default function Inbox() {
   const [user, setUser] = useState(null);
@@ -326,7 +301,8 @@ export default function Inbox() {
     async function fetchUser() {
       setLoading(true);
       try {
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
         const loggedInUser = sessionData?.session?.user;
@@ -373,8 +349,10 @@ export default function Inbox() {
         // Unique IDs of other users
         const otherUserIds = Array.from(
           new Set(
-            messagesData.map(m => (m.sender_id === user.id ? m.receiver_id : m.sender_id))
-          )
+            messagesData.map((m) =>
+              m.sender_id === user.id ? m.receiver_id : m.sender_id,
+            ),
+          ),
         );
 
         if (otherUserIds.length === 0) {
@@ -399,8 +377,14 @@ export default function Inbox() {
     fetchChatUsers();
   }, [user]);
 
-  if (loading) return <div className="p-4">Loading...</div>;
-  if (!user || !profile) return <div className="p-4 text-red-500">User not found</div>;
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-full min-h-[50vh]">
+        <Spinner className="w-10 h-10 text-pink-600" />
+      </div>
+    );
+  if (!user || !profile)
+    return <div className="p-4 text-red-500">User not found</div>;
 
   return (
     <div className="p-4">
@@ -409,7 +393,7 @@ export default function Inbox() {
         <p>No previous chats yet</p>
       ) : (
         <ul>
-          {chatUsers.map(u => (
+          {chatUsers.map((u) => (
             <li key={u.id} className="mb-3">
               <Link
                 to={`/dashboard/messages/${u.id}`}
@@ -422,7 +406,9 @@ export default function Inbox() {
                 />
                 <div className="flex-1">
                   <h3 className="font-semibold text-pink-600">{u.full_name}</h3>
-                  <p className="text-sm text-gray-500">Last message preview...</p>
+                  <p className="text-sm text-gray-500">
+                    Last message preview...
+                  </p>
                 </div>
               </Link>
             </li>

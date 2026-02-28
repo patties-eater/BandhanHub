@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import Spinner from "../components/Spinner";
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -12,7 +13,9 @@ export default function AuthCallback() {
     async function handleCallback() {
       try {
         // storeSession: true ensures the client stores the session after redirect
-        const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
+        const { data, error } = await supabase.auth.getSessionFromUrl({
+          storeSession: true,
+        });
         if (error) {
           console.error("Auth callback error:", error);
           // just redirect to login on error
@@ -31,7 +34,10 @@ export default function AuthCallback() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div>Processing authentication... please wait.</div>
+      <div className="flex flex-col items-center gap-4">
+        <Spinner className="w-10 h-10 text-purple-600" />
+        <p>Processing authentication...</p>
+      </div>
     </div>
   );
 }

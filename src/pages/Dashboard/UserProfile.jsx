@@ -191,20 +191,22 @@
 //   );
 // }
 
-
-
-
-
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
+import Spinner from "../../components/Spinner";
+import Input from "../../components/Input";
+import Select from "../../components/Select";
+import Textarea from "../../components/Textarea";
 
 export default function UserProfile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function fetchProfile() {
+      setLoading(true);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -224,12 +226,18 @@ export default function UserProfile() {
     fetchProfile();
   }, []);
 
+  function handleChange(e) {
+    setProfile((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }
+
   async function handleUpdate(e) {
     e.preventDefault();
+    setSaving(true);
     const { error } = await supabase
       .from("profiles")
       .update(profile)
       .eq("id", profile.id);
+    setSaving(false);
 
     if (error) alert(error.message);
     else alert("Profile updated!");
@@ -273,24 +281,37 @@ export default function UserProfile() {
     }
   }
 
-  if (loading) return <div className="p-6">Loading…</div>;
+  if (loading)
+    return (
+      <div className="p-6 flex justify-center">
+        <Spinner className="w-10 h-10 text-pink-600" />
+      </div>
+    );
   if (!profile) return <div className="p-6">No profile found</div>;
 
   return (
-    <div className="p-6 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Your Profile</h1>
+    <div className="p-6 max-w-2xl mx-auto bg-white rounded-2xl shadow-lg">
+      <h1 className="text-3xl font-bold mb-6 text-center text-gray-800">
+        Your Profile
+      </h1>
 
-      <div className="flex flex-col items-center mb-4">
+      <div className="flex flex-col items-center mb-8">
         <img
           src={
             profile.avatar_url ||
             `https://api.dicebear.com/8.x/avataaars/svg?seed=${profile.full_name}`
           }
           alt="Avatar"
-          className="w-24 h-24 rounded-full mb-2 object-cover"
+          className="w-32 h-32 rounded-full mb-4 object-cover border-4 border-pink-200 shadow-md"
         />
-        <label className="cursor-pointer bg-gray-200 px-3 py-1 rounded text-sm">
-          {uploading ? "Uploading…" : "Change Photo"}
+        <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg text-sm transition">
+          {uploading ? (
+            <div className="flex items-center gap-2">
+              <Spinner className="w-4 h-4" /> Uploading...
+            </div>
+          ) : (
+            "Change Photo"
+          )}
           <input
             type="file"
             accept="image/*"
@@ -301,63 +322,88 @@ export default function UserProfile() {
         </label>
       </div>
 
-      <form onSubmit={handleUpdate} className="space-y-3">
-        <input
+      <form onSubmit={handleUpdate} className="space-y-5">
+        <Input
+          label="Full Name"
+          name="full_name"
           type="text"
           value={profile.full_name || ""}
-          onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-          className="w-full border p-2 rounded"
+          onChange={handleChange}
           placeholder="Full name"
         />
-        <input
+        <Input
+          label="Birthdate"
+          name="birthdate"
           type="date"
           value={profile.birthdate || ""}
-          onChange={(e) => setProfile({ ...profile, birthdate: e.target.value })}
-          className="w-full border p-2 rounded"
+          onChange={handleChange}
         />
-        <input
-          type="text"
+        <Textarea
+          label="About Me"
+          name="bio"
+          value={profile.bio || ""}
+          onChange={handleChange}
+          placeholder="Share your hobbies, interests, and what you're looking for..."
+        />
+        <Select
+          label="Gender"
+          name="gender"
           value={profile.gender || ""}
-          onChange={(e) => setProfile({ ...profile, gender: e.target.value })}
-          className="w-full border p-2 rounded"
-          placeholder="Gender"
+          onChange={handleChange}
+          placeholder="Select Gender"
+          options={[
+            { value: "Male", label: "Male" },
+            { value: "Female", label: "Female" },
+            { value: "Other", label: "Other" },
+          ]}
         />
-        <input
-          type="text"
+        <Input
+          label="Address"
+          name="address"
           value={profile.address || ""}
-          onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-          className="w-full border p-2 rounded"
-          placeholder="Address"
+          onChange={handleChange}
+          placeholder="City, Country"
         />
-        <input
-          type="text"
+        <Input
+          label="Qualification"
+          name="qualification"
           value={profile.qualification || ""}
-          onChange={(e) =>
-            setProfile({ ...profile, qualification: e.target.value })
-          }
-          className="w-full border p-2 rounded"
-          placeholder="Qualification"
+          onChange={handleChange}
+          placeholder="e.g. Bachelor's in CS"
         />
-        <input
-          type="text"
+        <Select
+          label="Job Status"
+          name="job_status"
           value={profile.job_status || ""}
-          onChange={(e) => setProfile({ ...profile, job_status: e.target.value })}
-          className="w-full border p-2 rounded"
-          placeholder="Job status"
+          onChange={handleChange}
+          placeholder="Select Status"
+          options={[
+            { value: "Employed", label: "Employed" },
+            { value: "Unemployed", label: "Unemployed" },
+            { value: "Student", label: "Student" },
+            { value: "Self-Employed", label: "Self-Employed" },
+          ]}
         />
-        <input
-          type="text"
+        <Select
+          label="Job Type"
+          name="job_type"
           value={profile.job_type || ""}
-          onChange={(e) => setProfile({ ...profile, job_type: e.target.value })}
-          className="w-full border p-2 rounded"
-          placeholder="Job type"
+          onChange={handleChange}
+          placeholder="Select Type"
+          options={[
+            { value: "Full-time", label: "Full-time" },
+            { value: "Part-time", label: "Part-time" },
+            { value: "Freelance", label: "Freelance" },
+            { value: "Contract", label: "Contract" },
+          ]}
         />
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded"
+          disabled={saving || uploading}
+          className="w-full bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white font-bold py-3 rounded-lg shadow-lg transform transition hover:-translate-y-0.5 focus:ring-4 focus:ring-pink-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
         >
-          Save Changes
+          {saving ? <Spinner className="w-5 h-5 text-white" /> : "Save Changes"}
         </button>
       </form>
     </div>
