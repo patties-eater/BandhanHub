@@ -398,6 +398,26 @@ export default function Inbox() {
     }
 
     fetchChatUsers();
+
+    const channel = supabase
+      .channel("inbox-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          if (
+            payload.new.sender_id === user.id ||
+            payload.new.receiver_id === user.id
+          ) {
+            fetchChatUsers();
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   // 3️⃣ Subscribe to presence (Online Status)
