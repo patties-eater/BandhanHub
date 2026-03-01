@@ -19,6 +19,21 @@ export default function Messages() {
 
   const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
+  const parseCallPayload = (message) => {
+    if (message?.metadata && typeof message.metadata === "object") {
+      return message.metadata;
+    }
+    if (!message?.content || typeof message.content !== "string") {
+      return {};
+    }
+    try {
+      const parsed = JSON.parse(message.content);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
   // Fetch chat partner
   useEffect(() => {
     async function fetchUser() {
@@ -75,80 +90,108 @@ export default function Messages() {
   };
 
   const startCall = async () => {
-    if (!user) return;
+    if (!user || !currentUserId) return;
 
-    peerConnectionRef.current = createPeerConnection();
+    try {
+      peerConnectionRef.current = createPeerConnection();
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    setLocalStream(stream);
-    stream.getTracks().forEach((track) => {
-      peerConnectionRef.current.addTrack(track, stream);
-    });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      setLocalStream(stream);
+      stream.getTracks().forEach((track) => {
+        peerConnectionRef.current.addTrack(track, stream);
+      });
 
-    const offer = await peerConnectionRef.current.createOffer();
-    await peerConnectionRef.current.setLocalDescription(offer);
+      const offer = await peerConnectionRef.current.createOffer();
+      await peerConnectionRef.current.setLocalDescription(offer);
 
-    const { data: msgData, error } = await supabase
-      .from("messages")
-      .insert([
-        {
-          sender_id: currentUserId,
-          receiver_id: user.id,
-          type: "call_request",
-          status: "pending",
-          metadata: { offer },
-        },
-      ])
-      .select()
-      .single();
+      const { data: msgData, error } = await supabase
+        .from("messages")
+        .insert([
+          {
+            sender_id: currentUserId,
+            receiver_id: user.id,
+            type: "call_request",
+            status: "pending",
+            content: JSON.stringify({ offer }),
+          },
+        ])
+        .select()
+        .single();
 
-    if (error) {
-      console.error("Call insert failed:", error);
-      return;
+      if (error) {
+        console.error("Call insert failed:", error);
+        alert("Failed to start call: " + error.message);
+        return;
+      }
+
+      callMessageIdRef.current = msgData.id;
+      setInCall(true);
+    } catch (err) {
+      console.error("Start call error:", err);
+      alert(
+        "Could not start call. Please allow camera/microphone permissions.",
+      );
     }
-
-    callMessageIdRef.current = msgData.id;
-    setInCall(true);
   };
 
   const answerCall = async (message) => {
-    if (!message.metadata?.offer) return;
+    const callPayload = parseCallPayload(message);
+    if (!callPayload.offer) return;
 
-    callMessageIdRef.current = message.id;
-    peerConnectionRef.current = createPeerConnection();
+    try {
+      callMessageIdRef.current = message.id;
+      peerConnectionRef.current = createPeerConnection();
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    setLocalStream(stream);
-    stream.getTracks().forEach((track) => {
-      peerConnectionRef.current.addTrack(track, stream);
-    });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      setLocalStream(stream);
+      stream.getTracks().forEach((track) => {
+        peerConnectionRef.current.addTrack(track, stream);
+      });
 
-    await peerConnectionRef.current.setRemoteDescription(
-      new RTCSessionDescription(message.metadata.offer),
-    );
+      await peerConnectionRef.current.setRemoteDescription(
+        new RTCSessionDescription(callPayload.offer),
+      );
 
-    const answer = await peerConnectionRef.current.createAnswer();
-    await peerConnectionRef.current.setLocalDescription(answer);
+      const answer = await peerConnectionRef.current.createAnswer();
+      await peerConnectionRef.current.setLocalDescription(answer);
 
-    await supabase
-      .from("messages")
-      .update({ status: "answered", metadata: { ...message.metadata, answer } })
-      .eq("id", message.id);
+      const { error } = await supabase
+        .from("messages")
+        .update({
+          status: "answered",
+          content: JSON.stringify({ ...callPayload, answer }),
+        })
+        .eq("id", message.id);
 
-    setInCall(true);
+      if (error) throw error;
+
+      setInCall(true);
+    } catch (err) {
+      console.error("Answer call error:", err);
+      alert(
+        "Could not answer call. Please allow camera/microphone permissions.",
+      );
+    }
   };
 
   const declineCall = async (message) => {
-    await supabase
-      .from("messages")
-      .update({ status: "declined" })
-      .eq("id", message.id);
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .update({ status: "declined" })
+        .eq("id", message.id);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Decline call error:", err);
+      alert("Failed to decline call.");
+    }
   };
 
   const hangUp = async () => {
@@ -184,14 +227,17 @@ export default function Messages() {
         { event: "UPDATE", schema: "public", table: "messages" },
         async (payload) => {
           const updatedMessage = payload.new;
+          const callPayload = parseCallPayload(updatedMessage);
           if (
-            updatedMessage.sender_id === user.id &&
-            updatedMessage.receiver_id === currentUserId &&
-            updatedMessage.metadata?.answer &&
+            callMessageIdRef.current &&
+            updatedMessage.id === callMessageIdRef.current &&
+            updatedMessage.sender_id === currentUserId &&
+            updatedMessage.receiver_id === user.id &&
+            callPayload.answer &&
             peerConnectionRef.current?.signalingState === "have-local-offer"
           ) {
             await peerConnectionRef.current.setRemoteDescription(
-              new RTCSessionDescription(updatedMessage.metadata.answer),
+              new RTCSessionDescription(callPayload.answer),
             );
           }
         },

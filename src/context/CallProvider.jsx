@@ -285,44 +285,91 @@ export const CallProvider = ({ children }) => {
   const [activeCall, setActiveCall] = useState(null);
 
   useEffect(() => {
-    let subscription;
+    let channel;
+    let isMounted = true;
+
     async function subscribeToCalls() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!user || !isMounted) return;
 
-      subscription = supabase
-        .from(`messages:receiver_id=eq.${user.id}`)
-        .on("INSERT", (payload) => {
-          if (payload.new.type === "call_request") {
-            setIncomingCall(payload.new);
-          }
-        })
-        .on("UPDATE", (payload) => {
-          if (payload.new.type === "call_request") {
-            if (payload.new.status === "accepted") {
+      channel = supabase
+        .channel(`calls-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `receiver_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.new.type === "call_request") {
+              setIncomingCall(payload.new);
+            }
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "messages",
+            filter: `receiver_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.new.type !== "call_request") return;
+
+            if (payload.new.status === "answered") {
               setActiveCall(payload.new);
               setIncomingCall(null);
             }
-            if (payload.new.status === "rejected") {
+
+            if (["declined", "ended", "missed"].includes(payload.new.status)) {
               setIncomingCall(null);
+              setActiveCall(null);
             }
-          }
-        })
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "messages",
+            filter: `sender_id=eq.${user.id}`,
+          },
+          (payload) => {
+            if (payload.new.type !== "call_request") return;
+
+            if (payload.new.status === "answered") {
+              setActiveCall(payload.new);
+            }
+
+            if (["declined", "ended", "missed"].includes(payload.new.status)) {
+              setActiveCall(null);
+            }
+          },
+        )
         .subscribe();
     }
 
     subscribeToCalls();
 
     return () => {
-      if (subscription) supabase.removeSubscription(subscription);
+      isMounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
   return (
-    <CallContext.Provider value={{ incomingCall, setIncomingCall, activeCall, setActiveCall }}>
+    <CallContext.Provider
+      value={{ incomingCall, setIncomingCall, activeCall, setActiveCall }}
+    >
       {children}
     </CallContext.Provider>
   );

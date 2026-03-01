@@ -226,12 +226,14 @@ export default function ChatBox({
                       {!isOwn && msg.status === "pending" && (
                         <div className="mt-2 flex gap-2">
                           <button
+                            type="button"
                             onClick={() => onAnswerCall(msg)}
                             className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full hover:bg-green-600"
                           >
                             Answer
                           </button>
                           <button
+                            type="button"
                             onClick={() => onDeclineCall(msg)}
                             className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full hover:bg-red-600"
                           >
