@@ -11,6 +11,7 @@ export default function Messages() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [inCall, setInCall] = useState(false);
+  const [isDialing, setIsDialing] = useState(false);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [activeCallId, setActiveCallId] = useState(null);
@@ -192,6 +193,7 @@ export default function Messages() {
     pendingIceCandidatesRef.current = [];
     pendingRemoteIceCandidatesRef.current = [];
     setInCall(false);
+    setIsDialing(false);
     setLocalStream(null);
     setRemoteStream(null);
 
@@ -245,7 +247,7 @@ export default function Messages() {
       callMessageIdRef.current = msgData.id;
       setActiveCallId(msgData.id);
       await flushPendingIceCandidates();
-      setInCall(true);
+      setIsDialing(true);
     } catch (err) {
       console.error("Start call error:", err);
       cleanupCallState();
@@ -294,6 +296,7 @@ export default function Messages() {
       if (error) throw error;
 
       await flushPendingIceCandidates();
+      setIsDialing(false);
       setInCall(true);
     } catch (err) {
       console.error("Answer call error:", err);
@@ -374,6 +377,8 @@ export default function Messages() {
               new RTCSessionDescription(callPayload.answer),
             );
             await flushQueuedRemoteIceCandidates();
+            setIsDialing(false);
+            setInCall(true);
           }
 
           if (
@@ -426,11 +431,36 @@ export default function Messages() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 relative">
+      {isDialing && !inCall && (
+        <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl p-6 shadow-xl text-center">
+            <img
+              src={
+                user?.avatar_url ||
+                `https://api.dicebear.com/8.x/avataaars/svg?seed=${user?.full_name || "User"}`
+              }
+              alt={user?.full_name || "User"}
+              className="w-20 h-20 mx-auto rounded-full object-cover bg-gray-100"
+            />
+            <h3 className="mt-4 text-xl font-semibold text-gray-800">
+              {user?.full_name || "User"}
+            </h3>
+            <p className="mt-2 text-sm text-gray-500">Waiting for receiver to accept...</p>
+            <button
+              onClick={hangUp}
+              className="mt-6 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-full shadow"
+            >
+              Cancel Call
+            </button>
+          </div>
+        </div>
+      )}
       {inCall && (
         <CallView
           key={activeCallId || "call-view"}
           localStream={localStream}
           remoteStream={remoteStream}
+          peerUser={user}
           onHangup={hangUp}
         />
       )}

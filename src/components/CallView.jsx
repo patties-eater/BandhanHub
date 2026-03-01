@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export default function CallView({ localStream, remoteStream, onHangup }) {
+export default function CallView({ localStream, remoteStream, peerUser, onHangup }) {
   const localVideoRef = useRef();
   const remoteVideoRef = useRef();
 
@@ -21,6 +21,20 @@ export default function CallView({ localStream, remoteStream, onHangup }) {
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
       <div className="relative w-full h-full flex items-center justify-center">
+        <div className="absolute top-4 left-4 z-20 flex items-center gap-3 bg-black/55 text-white px-3 py-2 rounded-full">
+          <img
+            src={
+              peerUser?.avatar_url ||
+              `https://api.dicebear.com/8.x/avataaars/svg?seed=${peerUser?.full_name || "User"}`
+            }
+            alt={peerUser?.full_name || "User"}
+            className="w-9 h-9 rounded-full object-cover bg-gray-300"
+          />
+          <span className="text-sm font-medium">
+            {peerUser?.full_name || "Connected user"}
+          </span>
+        </div>
+
         {/* Remote Video (background) */}
         <div className="w-full h-full bg-gray-800 rounded-lg overflow-hidden flex items-center justify-center">
           <video
