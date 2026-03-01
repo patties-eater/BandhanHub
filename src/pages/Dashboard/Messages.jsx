@@ -131,7 +131,9 @@ export default function Messages() {
   };
 
   const flushQueuedRemoteIceCandidates = async () => {
-    if (!peerConnectionRef.current?.remoteDescription) return;
+    const pc = peerConnectionRef.current;
+    if (!pc?.remoteDescription) return;
+    if (pc.signalingState === "closed" || pc.connectionState === "closed") return;
     if (pendingRemoteIceCandidatesRef.current.length === 0) return;
 
     const queued = [...pendingRemoteIceCandidatesRef.current];
@@ -139,29 +141,31 @@ export default function Messages() {
 
     for (const candidate of queued) {
       try {
-        await peerConnectionRef.current.addIceCandidate(
-          new RTCIceCandidate(candidate),
-        );
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
-        console.error("Failed to flush queued ICE candidate:", err);
+        if (err?.name !== "InvalidStateError" && err?.name !== "OperationError") {
+          console.error("Failed to flush queued ICE candidate:", err);
+        }
       }
     }
   };
 
   const applyOrQueueRemoteIceCandidate = async (candidate) => {
-    if (!peerConnectionRef.current) return;
+    const pc = peerConnectionRef.current;
+    if (!pc) return;
+    if (pc.signalingState === "closed" || pc.connectionState === "closed") return;
 
-    if (!peerConnectionRef.current.remoteDescription) {
+    if (!pc.remoteDescription) {
       pendingRemoteIceCandidatesRef.current.push(candidate);
       return;
     }
 
     try {
-      await peerConnectionRef.current.addIceCandidate(
-        new RTCIceCandidate(candidate),
-      );
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
-      console.error("Failed to add ICE candidate:", err);
+      if (err?.name !== "InvalidStateError" && err?.name !== "OperationError") {
+        console.error("Failed to add ICE candidate:", err);
+      }
     }
   };
 
