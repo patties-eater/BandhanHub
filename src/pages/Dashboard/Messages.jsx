@@ -17,6 +17,7 @@ export default function Messages() {
 
   const peerConnectionRef = useRef(null);
   const callMessageIdRef = useRef(null);
+  const callSessionRef = useRef(0);
   const localStreamRef = useRef(null);
   const remoteMediaStreamRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
@@ -74,13 +75,14 @@ export default function Messages() {
 
   // --- WebRTC Call Logic ---
 
-  const createPeerConnection = () => {
+  const createPeerConnection = (sessionId) => {
     const pc = new RTCPeerConnection(servers);
     remoteMediaStreamRef.current = new MediaStream();
     setRemoteStream(remoteMediaStreamRef.current);
     pendingRemoteIceCandidatesRef.current = [];
 
     pc.onicecandidate = async (event) => {
+      if (sessionId !== callSessionRef.current) return;
       if (!event.candidate) return;
 
       const candidatePayload = {
@@ -98,6 +100,7 @@ export default function Messages() {
     };
 
     pc.ontrack = (event) => {
+      if (sessionId !== callSessionRef.current) return;
       if (!remoteMediaStreamRef.current) {
         remoteMediaStreamRef.current = new MediaStream();
       }
@@ -170,6 +173,8 @@ export default function Messages() {
   };
 
   const cleanupCallState = useCallback(({ resetCallId = true } = {}) => {
+    callSessionRef.current += 1;
+
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
@@ -201,7 +206,8 @@ export default function Messages() {
 
     try {
       cleanupCallState();
-      peerConnectionRef.current = createPeerConnection();
+      const sessionId = callSessionRef.current;
+      peerConnectionRef.current = createPeerConnection(sessionId);
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -257,7 +263,8 @@ export default function Messages() {
       cleanupCallState();
       callMessageIdRef.current = message.id;
       setActiveCallId(message.id);
-      peerConnectionRef.current = createPeerConnection();
+      const sessionId = callSessionRef.current;
+      peerConnectionRef.current = createPeerConnection(sessionId);
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
