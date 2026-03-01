@@ -5,6 +5,23 @@ import { supabase } from "../../supabaseClient";
 import ChatBox from "../../components/ChatBox";
 import CallView from "../../components/CallView";
 
+const buildIceServers = () => {
+  const servers = [{ urls: "stun:stun.l.google.com:19302" }];
+  const turnUrl = import.meta.env.VITE_TURN_URL;
+  const turnUsername = import.meta.env.VITE_TURN_USERNAME;
+  const turnCredential = import.meta.env.VITE_TURN_CREDENTIAL;
+
+  if (turnUrl && turnUsername && turnCredential) {
+    servers.push({
+      urls: turnUrl,
+      username: turnUsername,
+      credential: turnCredential,
+    });
+  }
+
+  return servers;
+};
+
 export default function Messages() {
   const { id } = useParams();
   const [user, setUser] = useState(null);
@@ -25,7 +42,7 @@ export default function Messages() {
   const pendingRemoteIceCandidatesRef = useRef([]);
   const appliedRemoteCandidateIdsRef = useRef(new Set());
 
-  const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+  const servers = { iceServers: buildIceServers() };
 
   const parseCallPayload = (message) => {
     if (message?.metadata && typeof message.metadata === "object") {
