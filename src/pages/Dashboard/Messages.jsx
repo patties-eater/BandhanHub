@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 
@@ -16,6 +16,9 @@ export default function Messages() {
 
   const peerConnectionRef = useRef(null);
   const callMessageIdRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const remoteMediaStreamRef = useRef(null);
+  const pendingIceCandidatesRef = useRef([]);
 
   const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
@@ -33,6 +36,10 @@ export default function Messages() {
       return {};
     }
   };
+
+  useEffect(() => {
+    localStreamRef.current = localStream;
+  }, [localStream]);
 
   // Fetch chat partner
   useEffect(() => {
@@ -67,27 +74,83 @@ export default function Messages() {
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection(servers);
+    remoteMediaStreamRef.current = new MediaStream();
+    setRemoteStream(remoteMediaStreamRef.current);
 
     pc.onicecandidate = async (event) => {
-      if (event.candidate && callMessageIdRef.current) {
-        await supabase.from("call_ice_candidates").insert({
-          message_id: callMessageIdRef.current,
-          sender_id: currentUserId,
-          candidate: event.candidate.toJSON(),
-        });
+      if (!event.candidate) return;
+
+      const candidatePayload = {
+        message_id: callMessageIdRef.current,
+        sender_id: currentUserId,
+        candidate: event.candidate.toJSON(),
+      };
+
+      if (!callMessageIdRef.current) {
+        pendingIceCandidatesRef.current.push(candidatePayload);
+        return;
       }
+
+      await supabase.from("call_ice_candidates").insert(candidatePayload);
     };
 
     pc.ontrack = (event) => {
-      const newStream = new MediaStream();
-      event.streams[0].getTracks().forEach((track) => {
-        newStream.addTrack(track);
-      });
-      setRemoteStream(newStream);
+      if (!remoteMediaStreamRef.current) {
+        remoteMediaStreamRef.current = new MediaStream();
+      }
+
+      const hasTrack = remoteMediaStreamRef.current
+        .getTracks()
+        .some((track) => track.id === event.track.id);
+
+      if (!hasTrack) {
+        remoteMediaStreamRef.current.addTrack(event.track);
+      }
+
+      setRemoteStream(new MediaStream(remoteMediaStreamRef.current.getTracks()));
     };
 
     return pc;
   };
+
+  const flushPendingIceCandidates = async () => {
+    if (!callMessageIdRef.current || pendingIceCandidatesRef.current.length === 0) {
+      return;
+    }
+
+    const rows = pendingIceCandidatesRef.current.map((item) => ({
+      ...item,
+      message_id: callMessageIdRef.current,
+    }));
+
+    pendingIceCandidatesRef.current = [];
+    await supabase.from("call_ice_candidates").insert(rows);
+  };
+
+  const cleanupCallState = useCallback(({ resetCallId = true } = {}) => {
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
+
+    if (remoteMediaStreamRef.current) {
+      remoteMediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      remoteMediaStreamRef.current = null;
+    }
+
+    pendingIceCandidatesRef.current = [];
+    setInCall(false);
+    setLocalStream(null);
+    setRemoteStream(null);
+
+    if (resetCallId) {
+      callMessageIdRef.current = null;
+    }
+  }, []);
 
   const startCall = async () => {
     if (!user || !currentUserId) return;
@@ -124,13 +187,16 @@ export default function Messages() {
       if (error) {
         console.error("Call insert failed:", error);
         alert("Failed to start call: " + error.message);
+        cleanupCallState();
         return;
       }
 
       callMessageIdRef.current = msgData.id;
+      await flushPendingIceCandidates();
       setInCall(true);
     } catch (err) {
       console.error("Start call error:", err);
+      cleanupCallState();
       alert(
         "Could not start call. Please allow camera/microphone permissions.",
       );
@@ -171,9 +237,11 @@ export default function Messages() {
 
       if (error) throw error;
 
+      await flushPendingIceCandidates();
       setInCall(true);
     } catch (err) {
       console.error("Answer call error:", err);
+      cleanupCallState();
       alert(
         "Could not answer call. Please allow camera/microphone permissions.",
       );
@@ -195,24 +263,15 @@ export default function Messages() {
   };
 
   const hangUp = async () => {
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
-    }
-    setInCall(false);
-    setLocalStream(null);
-    setRemoteStream(null);
+    const activeCallId = callMessageIdRef.current;
+    cleanupCallState();
 
-    if (callMessageIdRef.current) {
+    if (activeCallId) {
       await supabase
         .from("messages")
         .update({ status: "ended" })
-        .eq("id", callMessageIdRef.current)
+        .eq("id", activeCallId)
         .in("status", ["pending", "answered"]);
-      callMessageIdRef.current = null;
     }
   };
 
@@ -228,6 +287,8 @@ export default function Messages() {
         async (payload) => {
           const updatedMessage = payload.new;
           const callPayload = parseCallPayload(updatedMessage);
+          if (updatedMessage.type !== "call_request") return;
+
           if (
             callMessageIdRef.current &&
             updatedMessage.id === callMessageIdRef.current &&
@@ -240,6 +301,14 @@ export default function Messages() {
               new RTCSessionDescription(callPayload.answer),
             );
           }
+
+          if (
+            callMessageIdRef.current &&
+            updatedMessage.id === callMessageIdRef.current &&
+            ["ended", "declined", "missed"].includes(updatedMessage.status)
+          ) {
+            cleanupCallState();
+          }
         },
       )
       .subscribe();
@@ -250,8 +319,13 @@ export default function Messages() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "call_ice_candidates" },
         (payload) => {
-          const { sender_id, candidate } = payload.new;
-          if (sender_id !== currentUserId && peerConnectionRef.current) {
+          const { sender_id, candidate, message_id } = payload.new;
+          if (
+            sender_id !== currentUserId &&
+            callMessageIdRef.current &&
+            message_id === callMessageIdRef.current &&
+            peerConnectionRef.current
+          ) {
             peerConnectionRef.current.addIceCandidate(
               new RTCIceCandidate(candidate),
             );
@@ -263,8 +337,9 @@ export default function Messages() {
     return () => {
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(iceChannel);
+      cleanupCallState();
     };
-  }, [currentUserId, user]);
+  }, [currentUserId, user, cleanupCallState]);
 
   if (loading)
     return (
