@@ -1,184 +1,23 @@
-// import { useState, useEffect, useRef } from "react";
-// import { useParams } from "react-router-dom";
-// import { supabase } from "../../supabaseClient";
-
-// import ChatBox from "../../components/ChatBox";
-// import ChatHeader from "../../components/messages/ChatHeader";
-// import ChatInput from "../../components/messages/ChatInput";
-// import IncomingCallPopup from "../../components/messages/IncomingCallPopup";
-// import OutgoingCallOverlay from "../../components/messages/OutgoingCallOverlay";
-// import CallOverlay from "../../components/messages/CallOverlay";
-
-// export default function Messages() {
-//   const { id } = useParams();
-//   const [user, setUser] = useState(null);
-//   const [loading, setLoading] = useState(true);
-//   const [refreshTrigger, setRefreshTrigger] = useState(0);
-//   const [currentUserId, setCurrentUserId] = useState(null);
-
-//   // Call states
-//   const [incomingCall, setIncomingCall] = useState(null);
-//   const [outgoingCall, setOutgoingCall] = useState(false);
-//   const [inCall, setInCall] = useState(false);
-
-//   const localStreamRef = useRef(null);
-//   const remoteStreamRef = useRef(null);
-
-//   // Fetch chat partner
-//   useEffect(() => {
-//     async function fetchUser() {
-//       const { data, error } = await supabase
-//         .from("profiles")
-//         .select("*")
-//         .eq("id", id)
-//         .single();
-
-//       if (error) console.error(error);
-//       if (data) {
-//         setUser({
-//           id: data.id,
-//           name: data.full_name,
-//           image:
-//             data.avatar_url ||
-//             `https://api.dicebear.com/8.x/avataaars/svg?seed=${data.full_name}`,
-//         });
-//       }
-//       setLoading(false);
-//     }
-//     fetchUser();
-//   }, [id]);
-
-//   // Get current user
-//   useEffect(() => {
-//     async function getCurrentUser() {
-//       const {
-//         data: { user: currentUser },
-//       } = await supabase.auth.getUser();
-//       if (currentUser) setCurrentUserId(currentUser.id);
-//     }
-//     getCurrentUser();
-//   }, []);
-
-//   // Poll chat every 2s
-//   useEffect(() => {
-//     const interval = setInterval(
-//       () => setRefreshTrigger((prev) => prev + 1),
-//       2000
-//     );
-//     return () => clearInterval(interval);
-//   }, []);
-
-//   // --- Call functions ---
-//   const startCall = () => {
-//     console.log("Calling:", user?.name);
-//     setOutgoingCall(true);
-//   };
-
-//   const cancelOutgoingCall = () => {
-//     console.log("Cancelled call");
-//     setOutgoingCall(false);
-//   };
-
-//   const acceptCall = (call) => {
-//     console.log("Accepted call:", call);
-//     setIncomingCall(null);
-//     setInCall(true);
-//   };
-
-//   const rejectCall = (call) => {
-//     console.log("Rejected call:", call);
-//     setIncomingCall(null);
-//   };
-
-//   const endCall = () => {
-//     console.log("Ending call");
-//     setInCall(false);
-//     setOutgoingCall(false);
-//   };
-
-//   // --- Render ---
-//   if (loading)
-//     return (
-//       <div className="flex items-center justify-center h-screen">Loading…</div>
-//     );
-//   if (!user)
-//     return (
-//       <div className="flex items-center justify-center h-screen text-red-500">
-//         User not found
-//       </div>
-//     );
-
-//   return (
-//     <div className="flex flex-col h-screen">
-//       <ChatHeader user={user} startCall={startCall} />
-
-//       <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-2">
-//         <ChatBox user={user} refreshKey={refreshTrigger} />
-//       </div>
-
-//       <ChatInput
-//         user={user}
-//         currentUserId={currentUserId}
-//         setRefreshTrigger={setRefreshTrigger}
-//       />
-
-//       {/* Incoming Call */}
-//       {incomingCall && (
-//         <IncomingCallPopup
-//           call={incomingCall}
-//           onAccept={acceptCall}
-//           onReject={rejectCall}
-//         />
-//       )}
-
-//       {/* Outgoing Call */}
-//       {outgoingCall && !inCall && (
-//         <OutgoingCallOverlay user={user} onCancel={cancelOutgoingCall} />
-//       )}
-
-//       {/* Active Call */}
-//       <CallOverlay
-//         inCall={inCall}
-//         endCall={endCall}
-//         localStreamRef={localStreamRef}
-//         remoteStreamRef={remoteStreamRef}
-//       />
-//     </div>
-//   );
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 
 import ChatBox from "../../components/ChatBox";
-import ChatHeader from "../../components/messages/ChatHeader";
-import ChatInput from "../../components/messages/ChatInput";
+import CallView from "../../components/CallView";
 
 export default function Messages() {
   const { id } = useParams();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [inCall, setInCall] = useState(false);
+  const [localStream, setLocalStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
+
+  const peerConnectionRef = useRef(null);
+  const callMessageIdRef = useRef(null);
+
+  const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
   // Fetch chat partner
   useEffect(() => {
@@ -191,13 +30,7 @@ export default function Messages() {
 
       if (error) console.error(error);
       if (data) {
-        setUser({
-          id: data.id,
-          name: data.full_name,
-          image:
-            data.avatar_url ||
-            `https://api.dicebear.com/8.x/avataaars/svg?seed=${data.full_name}`,
-        });
+        setUser(data);
       }
       setLoading(false);
     }
@@ -207,51 +40,213 @@ export default function Messages() {
   // Get current user
   useEffect(() => {
     async function getCurrentUser() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) setCurrentUserId(user.id);
     }
     getCurrentUser();
   }, []);
 
-  // Poll chat every 2s
-  useEffect(() => {
-    const interval = setInterval(() => setRefreshTrigger(prev => prev + 1), 2000);
-    return () => clearInterval(interval);
-  }, []);
+  // --- WebRTC Call Logic ---
 
-  // --- Start call ---
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection(servers);
+
+    pc.onicecandidate = async (event) => {
+      if (event.candidate && callMessageIdRef.current) {
+        await supabase.from("call_ice_candidates").insert({
+          message_id: callMessageIdRef.current,
+          sender_id: currentUserId,
+          candidate: event.candidate.toJSON(),
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      const newStream = new MediaStream();
+      event.streams[0].getTracks().forEach((track) => {
+        newStream.addTrack(track);
+      });
+      setRemoteStream(newStream);
+    };
+
+    return pc;
+  };
+
   const startCall = async () => {
     if (!user) return;
 
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (!currentUser) return;
+    peerConnectionRef.current = createPeerConnection();
 
-    // Insert call request message in Supabase
-    const { error } = await supabase.from("messages").insert([{
-      sender_id: currentUser.id,
-      receiver_id: user.id,
-      content: `📞 ${currentUser.email || "Someone"} is trying to call you…`,
-      type: "call_request",
-      status: "pending",
-      created_at: new Date().toISOString(),
-    }]);
-    if (error) console.error("Call insert failed:", error);
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+    setLocalStream(stream);
+    stream.getTracks().forEach((track) => {
+      peerConnectionRef.current.addTrack(track, stream);
+    });
+
+    const offer = await peerConnectionRef.current.createOffer();
+    await peerConnectionRef.current.setLocalDescription(offer);
+
+    const { data: msgData, error } = await supabase
+      .from("messages")
+      .insert([
+        {
+          sender_id: currentUserId,
+          receiver_id: user.id,
+          type: "call_request",
+          status: "pending",
+          metadata: { offer },
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Call insert failed:", error);
+      return;
+    }
+
+    callMessageIdRef.current = msgData.id;
+    setInCall(true);
   };
 
+  const answerCall = async (message) => {
+    if (!message.metadata?.offer) return;
+
+    callMessageIdRef.current = message.id;
+    peerConnectionRef.current = createPeerConnection();
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+    setLocalStream(stream);
+    stream.getTracks().forEach((track) => {
+      peerConnectionRef.current.addTrack(track, stream);
+    });
+
+    await peerConnectionRef.current.setRemoteDescription(
+      new RTCSessionDescription(message.metadata.offer),
+    );
+
+    const answer = await peerConnectionRef.current.createAnswer();
+    await peerConnectionRef.current.setLocalDescription(answer);
+
+    await supabase
+      .from("messages")
+      .update({ status: "answered", metadata: { ...message.metadata, answer } })
+      .eq("id", message.id);
+
+    setInCall(true);
+  };
+
+  const declineCall = async (message) => {
+    await supabase
+      .from("messages")
+      .update({ status: "declined" })
+      .eq("id", message.id);
+  };
+
+  const hangUp = async () => {
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (localStream) {
+      localStream.getTracks().forEach((track) => track.stop());
+    }
+    setInCall(false);
+    setLocalStream(null);
+    setRemoteStream(null);
+
+    if (callMessageIdRef.current) {
+      await supabase
+        .from("messages")
+        .update({ status: "ended" })
+        .eq("id", callMessageIdRef.current)
+        .in("status", ["pending", "answered"]);
+      callMessageIdRef.current = null;
+    }
+  };
+
+  // --- Signaling via Supabase Realtime ---
+  useEffect(() => {
+    if (!currentUserId || !user?.id) return;
+
+    const messageChannel = supabase
+      .channel("messages-channel")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages" },
+        async (payload) => {
+          const updatedMessage = payload.new;
+          if (
+            updatedMessage.sender_id === user.id &&
+            updatedMessage.receiver_id === currentUserId &&
+            updatedMessage.metadata?.answer &&
+            peerConnectionRef.current?.signalingState === "have-local-offer"
+          ) {
+            await peerConnectionRef.current.setRemoteDescription(
+              new RTCSessionDescription(updatedMessage.metadata.answer),
+            );
+          }
+        },
+      )
+      .subscribe();
+
+    const iceChannel = supabase
+      .channel("ice-candidates-channel")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "call_ice_candidates" },
+        (payload) => {
+          const { sender_id, candidate } = payload.new;
+          if (sender_id !== currentUserId && peerConnectionRef.current) {
+            peerConnectionRef.current.addIceCandidate(
+              new RTCIceCandidate(candidate),
+            );
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(iceChannel);
+    };
+  }, [currentUserId, user]);
+
   if (loading)
-    return <div className="flex items-center justify-center h-screen">Loading…</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">Loading…</div>
+    );
   if (!user)
-    return <div className="flex items-center justify-center h-screen text-red-500">User not found</div>;
+    return (
+      <div className="flex items-center justify-center h-screen text-red-500">
+        User not found
+      </div>
+    );
 
   return (
-    <div className="flex flex-col h-screen">
-      <ChatHeader user={user} startCall={startCall} />
-
-      <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-2">
-        <ChatBox user={user} refreshKey={refreshTrigger} />
-      </div>
-
-      <ChatInput user={user} currentUserId={currentUserId} setRefreshTrigger={setRefreshTrigger} />
+    <div className="flex flex-col h-screen bg-gray-50 relative">
+      {inCall && (
+        <CallView
+          localStream={localStream}
+          remoteStream={remoteStream}
+          onHangup={hangUp}
+        />
+      )}
+      <ChatBox
+        user={user}
+        currentUserId={currentUserId}
+        onStartCall={startCall}
+        onAnswerCall={answerCall}
+        onDeclineCall={declineCall}
+      />
     </div>
   );
 }
