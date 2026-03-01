@@ -907,7 +907,10 @@ export default function Notifications({ currentUserId, openChat }) {
                 n.is_read ? "bg-white text-gray-400" : "bg-blue-50 border-l-4 border-blue-400"
               } hover:bg-gray-100`}
               onClick={() => {
-                if (n.type === "message" && n.sender) openChat(n.sender.id);
+                if (n.sender) {
+                  openChat(n.sender.id);
+                  setIsOpen(false);
+                }
               }}
             >
               {n.sender?.avatar_url && (

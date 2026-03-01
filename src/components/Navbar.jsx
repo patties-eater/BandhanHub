@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Home, MessageCircle, Heart, User, Settings } from "lucide-react";
 import Notifications from "../pages/Dashboard/Notifications";
 import { supabase } from "../supabaseClient";
 
 export default function Navbar() {
   const [currentUserId, setCurrentUserId] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function getUser() {
@@ -16,6 +17,10 @@ export default function Navbar() {
     }
     getUser();
   }, []);
+
+  const openChat = (userId) => {
+    navigate(`/dashboard/messages/${userId}`);
+  };
 
   const links = [
     { name: "Home", to: "/dashboard", icon: <Home size={24} /> },
@@ -60,12 +65,12 @@ export default function Navbar() {
               {link.name}
             </NavLink>
           ))}
-          {currentUserId && <Notifications currentUserId={currentUserId} />}
+          {currentUserId && <Notifications currentUserId={currentUserId} openChat={openChat} />}
         </div>
 
         {/* Mobile Notifications (Top Right) */}
         <div className="md:hidden flex items-center">
-          {currentUserId && <Notifications currentUserId={currentUserId} />}
+          {currentUserId && <Notifications currentUserId={currentUserId} openChat={openChat} />}
         </div>
       </nav>
 

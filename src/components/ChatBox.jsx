@@ -117,7 +117,17 @@ export default function ChatBox({
       },
     ]);
 
-    if (!error) setNewMessage("");
+    if (!error) {
+      setNewMessage("");
+      // Create notification
+      await supabase.from("notifications").insert({
+        sender_id: currentUserId,
+        receiver_id: user.id,
+        type: "message",
+        content: newMessage.trim(),
+        is_read: false,
+      });
+    }
   }
 
   // Long press handler for mobile

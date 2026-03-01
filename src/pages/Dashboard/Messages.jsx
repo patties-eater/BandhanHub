@@ -264,6 +264,15 @@ export default function Messages() {
         return;
       }
 
+      // Send notification
+      await supabase.from("notifications").insert({
+        sender_id: currentUserId,
+        receiver_id: user.id,
+        type: "call",
+        content: "📞 Incoming Call...",
+        is_read: false,
+      });
+
       callMessageIdRef.current = msgData.id;
       setActiveCallId(msgData.id);
       await flushPendingIceCandidates();
