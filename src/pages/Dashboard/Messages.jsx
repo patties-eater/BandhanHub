@@ -20,6 +20,7 @@ export default function Messages() {
   const localStreamRef = useRef(null);
   const remoteMediaStreamRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
+  const pendingRemoteIceCandidatesRef = useRef([]);
 
   const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
@@ -77,6 +78,7 @@ export default function Messages() {
     const pc = new RTCPeerConnection(servers);
     remoteMediaStreamRef.current = new MediaStream();
     setRemoteStream(remoteMediaStreamRef.current);
+    pendingRemoteIceCandidatesRef.current = [];
 
     pc.onicecandidate = async (event) => {
       if (!event.candidate) return;
@@ -128,6 +130,41 @@ export default function Messages() {
     await supabase.from("call_ice_candidates").insert(rows);
   };
 
+  const flushQueuedRemoteIceCandidates = async () => {
+    if (!peerConnectionRef.current?.remoteDescription) return;
+    if (pendingRemoteIceCandidatesRef.current.length === 0) return;
+
+    const queued = [...pendingRemoteIceCandidatesRef.current];
+    pendingRemoteIceCandidatesRef.current = [];
+
+    for (const candidate of queued) {
+      try {
+        await peerConnectionRef.current.addIceCandidate(
+          new RTCIceCandidate(candidate),
+        );
+      } catch (err) {
+        console.error("Failed to flush queued ICE candidate:", err);
+      }
+    }
+  };
+
+  const applyOrQueueRemoteIceCandidate = async (candidate) => {
+    if (!peerConnectionRef.current) return;
+
+    if (!peerConnectionRef.current.remoteDescription) {
+      pendingRemoteIceCandidatesRef.current.push(candidate);
+      return;
+    }
+
+    try {
+      await peerConnectionRef.current.addIceCandidate(
+        new RTCIceCandidate(candidate),
+      );
+    } catch (err) {
+      console.error("Failed to add ICE candidate:", err);
+    }
+  };
+
   const cleanupCallState = useCallback(({ resetCallId = true } = {}) => {
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
@@ -144,6 +181,7 @@ export default function Messages() {
     }
 
     pendingIceCandidatesRef.current = [];
+    pendingRemoteIceCandidatesRef.current = [];
     setInCall(false);
     setLocalStream(null);
     setRemoteStream(null);
@@ -229,6 +267,7 @@ export default function Messages() {
       await peerConnectionRef.current.setRemoteDescription(
         new RTCSessionDescription(callPayload.offer),
       );
+      await flushQueuedRemoteIceCandidates();
 
       const answer = await peerConnectionRef.current.createAnswer();
       await peerConnectionRef.current.setLocalDescription(answer);
@@ -306,6 +345,7 @@ export default function Messages() {
             await peerConnectionRef.current.setRemoteDescription(
               new RTCSessionDescription(callPayload.answer),
             );
+            await flushQueuedRemoteIceCandidates();
           }
 
           if (
@@ -332,11 +372,7 @@ export default function Messages() {
             message_id === callMessageIdRef.current &&
             peerConnectionRef.current
           ) {
-            peerConnectionRef.current
-              .addIceCandidate(new RTCIceCandidate(candidate))
-              .catch((err) => {
-                console.error("Failed to add ICE candidate:", err);
-              });
+            applyOrQueueRemoteIceCandidate(candidate);
           }
         },
       )
