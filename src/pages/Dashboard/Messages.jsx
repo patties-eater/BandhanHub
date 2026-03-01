@@ -23,6 +23,7 @@ export default function Messages() {
   const remoteMediaStreamRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
   const pendingRemoteIceCandidatesRef = useRef([]);
+  const appliedRemoteCandidateIdsRef = useRef(new Set());
 
   const servers = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
@@ -81,6 +82,7 @@ export default function Messages() {
     remoteMediaStreamRef.current = new MediaStream();
     setRemoteStream(remoteMediaStreamRef.current);
     pendingRemoteIceCandidatesRef.current = [];
+    appliedRemoteCandidateIdsRef.current = new Set();
 
     pc.onicecandidate = async (event) => {
       if (sessionId !== callSessionRef.current) return;
@@ -192,6 +194,7 @@ export default function Messages() {
 
     pendingIceCandidatesRef.current = [];
     pendingRemoteIceCandidatesRef.current = [];
+    appliedRemoteCandidateIdsRef.current = new Set();
     setInCall(false);
     setIsDialing(false);
     setLocalStream(null);
@@ -398,13 +401,15 @@ export default function Messages() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "call_ice_candidates" },
         (payload) => {
-          const { sender_id, candidate, message_id } = payload.new;
+          const { id: candidateId, sender_id, candidate, message_id } = payload.new;
           if (
             sender_id !== currentUserId &&
             callMessageIdRef.current &&
             message_id === callMessageIdRef.current &&
             peerConnectionRef.current
           ) {
+            if (appliedRemoteCandidateIdsRef.current.has(candidateId)) return;
+            appliedRemoteCandidateIdsRef.current.add(candidateId);
             applyOrQueueRemoteIceCandidate(candidate);
           }
         },
@@ -417,6 +422,32 @@ export default function Messages() {
       cleanupCallState();
     };
   }, [currentUserId, user, cleanupCallState]);
+
+  // Fallback: poll ICE candidates in case realtime delivery is delayed/missed.
+  useEffect(() => {
+    if (!activeCallId || !currentUserId) return;
+
+    const poll = async () => {
+      const { data, error } = await supabase
+        .from("call_ice_candidates")
+        .select("id,sender_id,candidate,message_id")
+        .eq("message_id", activeCallId)
+        .neq("sender_id", currentUserId)
+        .order("id", { ascending: true });
+
+      if (error || !data?.length) return;
+
+      for (const row of data) {
+        if (appliedRemoteCandidateIdsRef.current.has(row.id)) continue;
+        appliedRemoteCandidateIdsRef.current.add(row.id);
+        applyOrQueueRemoteIceCandidate(row.candidate);
+      }
+    };
+
+    poll();
+    const intervalId = setInterval(poll, 1000);
+    return () => clearInterval(intervalId);
+  }, [activeCallId, currentUserId]);
 
   if (loading)
     return (
