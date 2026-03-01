@@ -26,7 +26,7 @@ export default function Dashboard() {
   return (
     <div className="h-screen flex flex-col">
       <Navbar />
-      <div className="flex-1 bg-gray-50 overflow-y-auto">
+      <div className="flex-1 bg-gray-50 overflow-y-auto pb-20 md:pb-0">
         <Outlet />
       </div>
     </div>
