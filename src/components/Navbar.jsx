@@ -1,8 +1,3 @@
-
-
-
-
-
 import { useState, useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { Menu, X } from "lucide-react";
@@ -15,7 +10,9 @@ export default function Navbar() {
 
   useEffect(() => {
     async function getUser() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) setCurrentUserId(user.id);
     }
     getUser();
@@ -39,12 +36,14 @@ export default function Navbar() {
       </Link>
 
       <div className="hidden md:flex items-center space-x-6">
-        {links.map(link => (
+        {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
             className={({ isActive }) =>
-              isActive ? "text-yellow-300 font-semibold" : "text-white hover:text-pink-200"
+              isActive
+                ? "text-yellow-300 font-semibold"
+                : "text-white hover:text-pink-200"
             }
           >
             {link.name}
@@ -61,14 +60,16 @@ export default function Navbar() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 w-full bg-pink-600 shadow-md md:hidden flex flex-col items-start space-y-4 p-4">
-          {links.map(link => (
+        <div className="absolute top-full left-0 w-full bg-pink-600 shadow-md md:hidden flex flex-col items-start space-y-4 p-4 z-50">
+          {links.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
               onClick={() => setIsOpen(false)}
               className={({ isActive }) =>
-                isActive ? "text-yellow-300 font-semibold w-full" : "text-white hover:text-pink-200 w-full"
+                isActive
+                  ? "text-yellow-300 font-semibold w-full"
+                  : "text-white hover:text-pink-200 w-full"
               }
             >
               {link.name}

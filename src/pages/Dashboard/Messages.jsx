@@ -13,6 +13,7 @@ export default function Messages() {
   const [inCall, setInCall] = useState(false);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [activeCallId, setActiveCallId] = useState(null);
 
   const peerConnectionRef = useRef(null);
   const callMessageIdRef = useRef(null);
@@ -149,6 +150,7 @@ export default function Messages() {
 
     if (resetCallId) {
       callMessageIdRef.current = null;
+      setActiveCallId(null);
     }
   }, []);
 
@@ -156,6 +158,7 @@ export default function Messages() {
     if (!user || !currentUserId) return;
 
     try {
+      cleanupCallState();
       peerConnectionRef.current = createPeerConnection();
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -192,6 +195,7 @@ export default function Messages() {
       }
 
       callMessageIdRef.current = msgData.id;
+      setActiveCallId(msgData.id);
       await flushPendingIceCandidates();
       setInCall(true);
     } catch (err) {
@@ -208,7 +212,9 @@ export default function Messages() {
     if (!callPayload.offer) return;
 
     try {
+      cleanupCallState();
       callMessageIdRef.current = message.id;
+      setActiveCallId(message.id);
       peerConnectionRef.current = createPeerConnection();
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -326,9 +332,11 @@ export default function Messages() {
             message_id === callMessageIdRef.current &&
             peerConnectionRef.current
           ) {
-            peerConnectionRef.current.addIceCandidate(
-              new RTCIceCandidate(candidate),
-            );
+            peerConnectionRef.current
+              .addIceCandidate(new RTCIceCandidate(candidate))
+              .catch((err) => {
+                console.error("Failed to add ICE candidate:", err);
+              });
           }
         },
       )
@@ -356,6 +364,7 @@ export default function Messages() {
     <div className="flex flex-col h-screen bg-gray-50 relative">
       {inCall && (
         <CallView
+          key={activeCallId || "call-view"}
           localStream={localStream}
           remoteStream={remoteStream}
           onHangup={hangUp}
