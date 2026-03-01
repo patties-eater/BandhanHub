@@ -72,6 +72,7 @@ export default function Navbar() {
                   : "text-white hover:text-pink-200 w-full"
               }
             >
+              
               {link.name}
             </NavLink>
           ))}
