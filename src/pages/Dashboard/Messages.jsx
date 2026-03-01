@@ -345,13 +345,30 @@ export default function Messages() {
           const callPayload = parseCallPayload(updatedMessage);
           if (updatedMessage.type !== "call_request") return;
 
+          const isOutgoingCallInThisChat =
+            updatedMessage.sender_id === currentUserId &&
+            updatedMessage.receiver_id === user.id;
+
+          // If the answered update arrives before we set local callMessageIdRef,
+          // bind this session to that call id so second-direction calls still connect.
+          if (
+            !callMessageIdRef.current &&
+            isOutgoingCallInThisChat &&
+            updatedMessage.status === "answered" &&
+            callPayload.answer
+          ) {
+            callMessageIdRef.current = updatedMessage.id;
+            setActiveCallId(updatedMessage.id);
+          }
+
           if (
             callMessageIdRef.current &&
             updatedMessage.id === callMessageIdRef.current &&
-            updatedMessage.sender_id === currentUserId &&
-            updatedMessage.receiver_id === user.id &&
+            isOutgoingCallInThisChat &&
             callPayload.answer &&
-            peerConnectionRef.current?.signalingState === "have-local-offer"
+            peerConnectionRef.current &&
+            !peerConnectionRef.current.currentRemoteDescription &&
+            peerConnectionRef.current.signalingState !== "closed"
           ) {
             await peerConnectionRef.current.setRemoteDescription(
               new RTCSessionDescription(callPayload.answer),
