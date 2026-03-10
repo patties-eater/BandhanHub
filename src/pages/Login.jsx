@@ -180,21 +180,20 @@ export default function Login() {
     await checkProfileAndRedirect();
   }
 
-  // ✅ magic link login
-  async function handleMagicLink(e) {
+  // ✅ Google OAuth login
+  async function handleGoogleLogin(e) {
     e.preventDefault();
-    if (!email) return alert("Please enter your email to send a magic link.");
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        shouldCreateUser: true,
       },
     });
     setLoading(false);
-    if (error) return alert(error.message);
-    alert("✅ Check your email for a magic login link.");
+    if (error) {
+      alert(error.message);
+    }
   }
 
   return (
@@ -272,11 +271,26 @@ export default function Login() {
           </div>
 
           <button
-            onClick={handleMagicLink}
+            onClick={handleGoogleLogin}
             disabled={loading}
-            className="mt-6 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-50 transition-colors focus:ring-4 focus:ring-gray-100 flex items-center justify-center gap-2"
+            className="mt-6 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg hover:bg-gray-50 transition-colors focus:ring-4 focus:ring-gray-100 flex items-center justify-center gap-3"
           >
-            <span>✨</span> Send Magic Link
+            <svg
+              className="w-5 h-5"
+              aria-hidden="true"
+              focusable="false"
+              data-prefix="fab"
+              data-icon="google"
+              role="img"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 488 512"
+            >
+              <path
+                fill="currentColor"
+                d="M488 261.8C488 403.3 381.5 512 244 512 110.3 512 0 401.7 0 256S110.3 0 244 0c73.2 0 136 28.7 182.4 73.6l-66.5 64.2C335.5 113.5 293.6 96 244 96c-88.6 0-160.1 71.1-160.1 160s71.5 160 160.1 160c97.4 0 134-60.8 138.8-93.2H244v-76.8h236.1c2.3 12.7 3.9 26.9 3.9 41.8z"
+              ></path>
+            </svg>
+            Sign in with Google
           </button>
         </div>
 
