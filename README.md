@@ -1,12 +1,44 @@
-# React + Vite
+# BandhanHub
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Supabase heartbeat
 
-Currently, two official plugins are available:
+This repo includes a small scheduled heartbeat to help keep a low-traffic Supabase Free project from going inactive.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Files:
 
-## Expanding the ESLint configuration
+- `.github/workflows/supabase-heartbeat.yml`
+- `scripts/supabase-heartbeat.js`
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+What it does:
+
+- Runs on GitHub Actions every Monday and Thursday at 03:17 UTC
+- Connects to Supabase
+- Performs a lightweight read against a configured table
+
+Recommended GitHub repository secrets:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_HEARTBEAT_TABLE`
+- `SUPABASE_HEARTBEAT_COLUMN`
+
+Fallback secret:
+
+- `SUPABASE_ANON_KEY`
+
+Recommended values:
+
+- `SUPABASE_HEARTBEAT_TABLE=profiles`
+- `SUPABASE_HEARTBEAT_COLUMN=id`
+
+Notes:
+
+- `SUPABASE_SERVICE_ROLE_KEY` is the most reliable option because it avoids heartbeat failures caused by RLS policies.
+- If you use `SUPABASE_ANON_KEY`, the selected table must still be readable for the query to succeed.
+- Supabase does not guarantee that a heartbeat will always prevent inactivity pauses, but this is a practical low-maintenance approach for low-traffic projects.
+
+Run locally:
+
+```bash
+npm run heartbeat
+```
