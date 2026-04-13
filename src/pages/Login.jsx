@@ -149,13 +149,27 @@ export default function Login() {
   const navigate = useNavigate();
 
   // ✅ helper → check profile and redirect
+  function isProfileComplete(profile) {
+    if (!profile) return false;
+    return (
+      profile.full_name &&
+      profile.birthdate &&
+      profile.gender &&
+      profile.address &&
+      profile.qualification &&
+      profile.job_status
+    );
+  }
+
   async function checkProfileAndRedirect() {
     const { data: { user } = {} } = await supabase.auth.getUser();
     if (!user) return navigate("/");
 
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("id")
+      .select(
+        "id, full_name, birthdate, gender, address, qualification, job_status"
+      )
       .eq("id", user.id)
       .single();
 
@@ -163,7 +177,7 @@ export default function Login() {
       console.error("Profile fetch error:", error);
     }
 
-    if (profile) navigate("/dashboard");
+    if (isProfileComplete(profile)) navigate("/dashboard");
     else navigate("/profile-setup");
   }
 
@@ -180,21 +194,21 @@ export default function Login() {
     await checkProfileAndRedirect();
   }
 
-  // ✅ Google OAuth login
-  async function handleGoogleLogin(e) {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    setLoading(false);
-    if (error) {
-      alert(error.message);
-    }
-  }
+  // Google sign-in is temporarily disabled.
+  // async function handleGoogleLogin(e) {
+  //   e.preventDefault();
+  //   setLoading(true);
+  //   const { error } = await supabase.auth.signInWithOAuth({
+  //     provider: "google",
+  //     options: {
+  //       emailRedirectTo: `${window.location.origin}/auth/callback`,
+  //     },
+  //   });
+  //   setLoading(false);
+  //   if (error) {
+  //     alert(error.message);
+  //   }
+  // }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4">
@@ -270,6 +284,7 @@ export default function Login() {
             </div>
           </div>
 
+          {/*
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -292,6 +307,7 @@ export default function Login() {
             </svg>
             Sign in with Google
           </button>
+          */}
         </div>
 
         <div className="mt-8 text-center">
@@ -305,7 +321,7 @@ export default function Login() {
             </Link>
           </p>
           <p className="mt-6 text-xs text-gray-400 font-medium">
-            Made by Prashin
+            Made by prajjwal
           </p>
         </div>
       </div>
