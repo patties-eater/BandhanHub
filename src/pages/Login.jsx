@@ -321,7 +321,7 @@ export default function Login() {
             </Link>
           </p>
           <p className="mt-6 text-xs text-gray-400 font-medium">
-            Made by prajjwal
+            Made by Prashin
           </p>
         </div>
       </div>
