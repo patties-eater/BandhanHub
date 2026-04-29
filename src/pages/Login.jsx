@@ -168,7 +168,7 @@ export default function Login() {
     const { data: profile, error } = await supabase
       .from("profiles")
       .select(
-        "id, full_name, birthdate, gender, address, qualification, job_status",
+        "id, full_name, birthdate, gender, address, qualification, job_status"
       )
       .eq("id", user.id)
       .single();
@@ -321,7 +321,7 @@ export default function Login() {
             </Link>
           </p>
           <p className="mt-6 text-xs text-gray-400 font-medium">
-            Made by prashin gautam
+            Made by prajjwal
           </p>
         </div>
       </div>
